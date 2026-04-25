@@ -14,6 +14,7 @@ const config: Config = {
 
 function makeOctokit(overrides: Record<string, unknown> = {}): Octokit {
   return {
+    paginate: vi.fn().mockResolvedValue([]),
     repos: {
       listCommits: vi.fn().mockResolvedValue({ data: [] }),
       ...(overrides.repos as object ?? {}),
@@ -42,7 +43,7 @@ const RAW_COMMIT = {
 describe('fetchCommits', () => {
   it('maps raw API response to GitHubCommit', async () => {
     const octokit = makeOctokit({
-      repos: { listCommits: vi.fn().mockResolvedValue({ data: [RAW_COMMIT] }) },
+      paginate: vi.fn().mockResolvedValue([RAW_COMMIT]),
     });
     const commits = await fetchCommits(octokit, config, new Date('2025-04-24T00:00:00Z'));
     expect(commits).toHaveLength(1);

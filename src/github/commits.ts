@@ -16,7 +16,10 @@ export async function fetchCommits(
   };
   if (until) params.until = until.toISOString();
 
-  const { data } = await octokit.repos.listCommits(params as Parameters<typeof octokit.repos.listCommits>[0]);
+  const data = await octokit.paginate(
+    octokit.repos.listCommits,
+    params as Parameters<typeof octokit.repos.listCommits>[0],
+  );
 
   return data.map(c => ({
     sha: c.sha,

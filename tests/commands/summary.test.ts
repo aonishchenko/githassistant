@@ -68,6 +68,7 @@ describe('createSummaryPlugin', () => {
 
   it('replies with no-commits message when no commits found', async () => {
     const octokit = {
+      paginate: vi.fn().mockResolvedValue([]),
       repos: { listCommits: vi.fn().mockResolvedValue({ data: [] }) },
       request: vi.fn(),
     } as unknown as Octokit;

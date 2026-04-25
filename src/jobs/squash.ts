@@ -19,15 +19,35 @@ export interface YesterdayWindow {
 }
 
 export function buildYesterdayWindow(timezone: string, now: Date = new Date()): YesterdayWindow {
-  const formatter = new Intl.DateTimeFormat('en-CA', {
+  const dateFmt = new Intl.DateTimeFormat('sv-SE', {
     timeZone: timezone,
     year: 'numeric', month: '2-digit', day: '2-digit',
   });
-  const todayStr = formatter.format(now);
-  const yesterdayStr = formatter.format(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+  const todayStr = dateFmt.format(now);
+  const yesterdayStr = dateFmt.format(new Date(now.getTime() - 24 * 60 * 60 * 1000));
 
-  const since = new Date(`${yesterdayStr}T00:00:00.000Z`);
-  const until = new Date(`${todayStr}T00:00:00.000Z`);
+  // Convert a YYYY-MM-DD date string at midnight in `timezone` to a UTC Date.
+  // Strategy: start with UTC midnight as approximation, then compute the local time
+  // offset at that instant using Intl.DateTimeFormat.formatToParts, and adjust.
+  const toUTCMidnight = (dateStr: string): Date => {
+    const utcApprox = new Date(`${dateStr}T00:00:00.000Z`);
+    const localTimeParts = new Intl.DateTimeFormat('en-US', {
+      timeZone: timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false,
+    }).formatToParts(utcApprox);
+    const localHour = parseInt(localTimeParts.find(p => p.type === 'hour')!.value, 10);
+    const localMin = parseInt(localTimeParts.find(p => p.type === 'minute')!.value, 10);
+    const localSec = parseInt(localTimeParts.find(p => p.type === 'second')!.value, 10);
+    // UTC midnight in a UTC+X timezone appears as time X:00:00 locally.
+    // To reach local midnight, subtract that many seconds from the UTC approximation.
+    const localSecsFromMidnight = localHour * 3600 + localMin * 60 + localSec;
+    return new Date(utcApprox.getTime() - localSecsFromMidnight * 1000);
+  };
+
+  const since = toUTCMidnight(yesterdayStr);
+  const until = toUTCMidnight(todayStr);
 
   return { since, until, dateStr: yesterdayStr };
 }
@@ -79,6 +99,12 @@ export function createSquashJob(
         return aEarliest - bEarliest;
       });
 
+      const needsSquash = groups.some(g => g.commits.length > 1);
+      if (!needsSquash) {
+        await adapter.sendMessage(`✅ Nothing to squash on ${dateStr} — each author had only 1 commit.`);
+        return;
+      }
+
       let prevSha = baseSha;
       let squashedCount = 0;
       let authorsSquashed = 0;
@@ -108,13 +134,9 @@ export function createSquashJob(
 
         await updateBranchRef(octokit, config, prevSha);
 
-        if (authorsSquashed === 0) {
-          await adapter.sendMessage(`✅ Nothing to squash on ${dateStr} — each author had only 1 commit.`);
-        } else {
-          await adapter.sendMessage(
-            `✅ Squashed ${squashedCount} commits from ${authorsSquashed} author(s) on ${dateStr}.`,
-          );
-        }
+        await adapter.sendMessage(
+          `✅ Squashed ${squashedCount} commits from ${authorsSquashed} author(s) on ${dateStr}.`,
+        );
       } catch (err: unknown) {
         await adapter.sendMessage(
           `❌ Squash job failed mid-way on ${dateStr}. Branch may be in a partially rewritten state. ` +
