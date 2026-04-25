@@ -2,3 +2,21 @@ node_modules/
 dist/
 .env
 *.js.map
+
+# Environment overrides (keep .env.example committed)
+.env.*
+!.env.example
+
+# Test coverage
+coverage/
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/
+.idea/
