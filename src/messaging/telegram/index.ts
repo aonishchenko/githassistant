@@ -101,7 +101,7 @@ export class TelegramAdapter implements MessagingAdapter {
           this.log.info({ to: username, optionCount: options.length }, `bot → @${username} (inline keyboard)`);
           await ctx.reply(msg, {
             reply_markup: {
-              inline_keyboard: [options.map(o => ({ text: o.label, callback_data: o.callbackData }))],
+              inline_keyboard: options.map(o => [{ text: o.label, callback_data: o.callbackData }]),
             },
           });
         },
