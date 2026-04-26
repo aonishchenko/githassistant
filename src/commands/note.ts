@@ -3,7 +3,6 @@ import type { Octokit } from '@octokit/rest';
 import type { Config, CommandPlugin, CallbackHandler } from '../types.js';
 import { parseNoteArgs, validateNotePath } from './note-resolver.js';
 import { getFile, writeFile, listFiles } from '../github/files.js';
-import { formatNoteAppend } from '../messaging/telegram/formatter.js';
 
 export function createNotePlugin(
   octokit: Octokit,
@@ -93,7 +92,7 @@ async function appendNoteToFile(
   const existing = await getFile(octokit, config, filePath);
   const header = `# ${path.basename(filePath, path.extname(filePath))}\n`;
   const currentContent = existing?.content ?? header;
-  const appended = currentContent + formatNoteAppend(noteText, username);
+  const appended = currentContent + `\n${noteText}\n`;
   const commitMsg = `note(@${username}): ${filePath}`;
   await writeFile(octokit, config, filePath, appended, commitMsg, existing?.sha);
 }
