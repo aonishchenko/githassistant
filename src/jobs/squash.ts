@@ -12,13 +12,13 @@ export function groupByAuthor(commits: GitHubCommit[]): AuthorCommitGroup[] {
   return Array.from(map.entries()).map(([authorLogin, commits]) => ({ authorLogin, commits }));
 }
 
-export interface YesterdayWindow {
+export interface SquashWindow {
   since: Date;
   until: Date;
   dateStr: string;
 }
 
-export function buildYesterdayWindow(timezone: string, now: Date = new Date()): YesterdayWindow {
+export function buildYesterdayWindow(timezone: string, now: Date = new Date()): SquashWindow {
   const dateFmt = new Intl.DateTimeFormat('sv-SE', {
     timeZone: timezone,
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -52,6 +52,11 @@ export function buildYesterdayWindow(timezone: string, now: Date = new Date()): 
   return { since, until, dateStr: yesterdayStr };
 }
 
+export function buildWindowUntilNow(since: Date, now: Date = new Date()): SquashWindow {
+  const dateStr = `${since.toISOString().slice(0, 10)} → now`;
+  return { since, until: now, dateStr };
+}
+
 export function buildSquashMessage(authorLogin: string, dateStr: string, commits: GitHubCommit[]): string {
   const sorted = [...commits].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   const bullets = sorted.map(c => `- ${c.message} (${c.shortSha})`).join('\n');
@@ -62,13 +67,14 @@ export function createSquashJob(
   octokit: Octokit,
   config: Config,
   adapter: MessagingAdapter,
+  buildWindow: () => SquashWindow = () => buildYesterdayWindow(config.scheduler.timezone),
 ): JobPlugin {
   return {
     name: 'squash',
     handler: async () => {
       if (!config.behavior.squashEnabled) return;
 
-      const { since, until, dateStr } = buildYesterdayWindow(config.scheduler.timezone);
+      const { since, until, dateStr } = buildWindow();
 
       let commits: GitHubCommit[];
       try {

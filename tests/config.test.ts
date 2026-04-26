@@ -17,6 +17,7 @@ function clearEnv() {
   for (const k of Object.keys(REQUIRED)) delete process.env[k];
   delete process.env.TELEGRAM_ALLOWED_USERS;
   delete process.env.NOTE_ALLOWED_PATHS;
+  delete process.env.NOTE_ALLOWED_EXTENSIONS;
   delete process.env.NOTE_SHORTCUTS;
   delete process.env.ANTHROPIC_API_KEY;
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { groupByAuthor, buildYesterdayWindow, buildSquashMessage } from '../../src/jobs/squash.js';
+import { groupByAuthor, buildYesterdayWindow, buildWindowUntilNow, buildSquashMessage } from '../../src/jobs/squash.js';
 import type { GitHubCommit } from '../../src/types.js';
 
 const makeCommit = (sha: string, authorLogin: string, date: string, treeSha = 'tree', parentShas = ['p']): GitHubCommit => ({
@@ -36,6 +36,17 @@ describe('buildYesterdayWindow', () => {
     expect(since.toISOString()).toBe('2025-04-24T00:00:00.000Z');
     expect(until.toISOString()).toBe('2025-04-25T00:00:00.000Z');
     expect(dateStr).toBe('2025-04-24');
+  });
+});
+
+describe('buildWindowUntilNow', () => {
+  it('uses provided since and now as until', () => {
+    const since = new Date('2026-04-20T00:00:00.000Z');
+    const now = new Date('2026-04-26T09:00:00.000Z');
+    const { since: s, until, dateStr } = buildWindowUntilNow(since, now);
+    expect(s).toBe(since);
+    expect(until).toBe(now);
+    expect(dateStr).toBe('2026-04-20 → now');
   });
 });
 
