@@ -27,11 +27,11 @@ describe('summariseAuthorDiffs', () => {
   });
 
   it('calls provider once when combined diffs are under limit', async () => {
-    const result = await summariseAuthorDiffs(mockProvider, ['small diff'], 'en');
+    const result = await summariseAuthorDiffs(mockProvider, ['small diff'], 'en', 'alice');
     expect(result).toBe('Summary text.');
     expect(mockProvider.summarise).toHaveBeenCalledTimes(1);
     expect(mockProvider.summarise).toHaveBeenCalledWith(
-      expect.stringContaining('en'),
+      expect.stringContaining('alice'),
       'small diff',
     );
   });
@@ -39,12 +39,12 @@ describe('summariseAuthorDiffs', () => {
   it('chunks large diffs and consolidates', async () => {
     vi.mocked(mockProvider.summarise).mockResolvedValue('Chunk summary.');
     const largeDiff = 'x'.repeat(90_000);
-    await summariseAuthorDiffs(mockProvider, [largeDiff], 'en');
-    // Should be called >1 times: chunks + consolidation
+    await summariseAuthorDiffs(mockProvider, [largeDiff], 'en', 'alice');
     expect(vi.mocked(mockProvider.summarise).mock.calls.length).toBeGreaterThan(1);
   });
 
-  it('SUMMARY_PROMPT includes the language', () => {
-    expect(SUMMARY_PROMPT('fr')).toContain('fr');
+  it('SUMMARY_PROMPT includes the language and author', () => {
+    expect(SUMMARY_PROMPT('fr', 'bob')).toContain('fr');
+    expect(SUMMARY_PROMPT('fr', 'bob')).toContain('@bob');
   });
 });

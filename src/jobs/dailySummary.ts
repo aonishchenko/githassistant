@@ -50,7 +50,7 @@ export function createDailySummaryJob(
       for (const [authorLogin, diffs] of authorDiffs.entries()) {
         let summary: string;
         try {
-          summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage);
+          summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage, authorLogin);
         } catch (err) {
           log.error({ err, authorLogin }, 'AI summarisation failed');
           summary = commits
