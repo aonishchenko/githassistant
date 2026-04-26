@@ -55,12 +55,15 @@ export class TelegramAdapter implements MessagingAdapter {
   }
 
   async sendMessage(text: string, options?: SendOptions): Promise<void> {
+    const preview = text.replace(/\n/g, ' ').slice(0, 120);
+    this.log.info({ preview }, 'bot → group');
     await this.bot.telegram.sendMessage(this.config.telegram.groupId, text, {
       parse_mode: options?.parseMode,
     });
   }
 
   async sendDocument(filename: string, content: Buffer, caption?: string): Promise<void> {
+    this.log.info({ filename, bytes: content.length, caption }, 'bot → group (document)');
     await this.bot.telegram.sendDocument(
       this.config.telegram.groupId,
       { source: content, filename },
@@ -74,6 +77,7 @@ export class TelegramAdapter implements MessagingAdapter {
       const username = ctx.from?.username ?? ctx.from?.first_name ?? 'unknown';
 
       if (this.checkRateLimit(userId)) {
+        this.log.warn({ userId, username, command }, 'rate limit exceeded');
         await ctx.reply('Rate limit exceeded. Please wait a minute before trying again.');
         return;
       }
@@ -81,13 +85,20 @@ export class TelegramAdapter implements MessagingAdapter {
       const fullText = (ctx.message as { text?: string }).text ?? '';
       const commandText = fullText.replace(/^\/\w+(@\w+)?\s*/, '');
 
+      this.log.info({ userId, username, command, args: commandText || '(none)' }, `← /${command}`);
+
       const pending = this.pendingNotes;
       const adapterCtx: AdapterContext = {
         userId,
         username,
         text: commandText,
-        replyText: async (msg, opts) => { await ctx.reply(msg, { parse_mode: opts?.parseMode }); },
+        replyText: async (msg, opts) => {
+          const preview = msg.replace(/\n/g, ' ').slice(0, 120);
+          this.log.info({ to: username, preview }, `bot → @${username}`);
+          await ctx.reply(msg, { parse_mode: opts?.parseMode });
+        },
         showOptions: async (msg, options: InlineOption[]) => {
+          this.log.info({ to: username, optionCount: options.length }, `bot → @${username} (inline keyboard)`);
           await ctx.reply(msg, {
             reply_markup: {
               inline_keyboard: [options.map(o => ({ text: o.label, callback_data: o.callbackData }))],
@@ -115,11 +126,17 @@ export class TelegramAdapter implements MessagingAdapter {
       const callbackData = (ctx.callbackQuery as { data?: string }).data ?? '';
       const pending = this.pendingNotes;
 
+      this.log.info({ userId, username, callbackData }, `← callback`);
+
       const callbackCtx: CallbackContext = {
         userId,
         username,
         callbackData,
-        replyText: async (msg, opts) => { await ctx.reply(msg, { parse_mode: opts?.parseMode }); },
+        replyText: async (msg, opts) => {
+          const preview = msg.replace(/\n/g, ' ').slice(0, 120);
+          this.log.info({ to: username, preview }, `bot → @${username}`);
+          await ctx.reply(msg, { parse_mode: opts?.parseMode });
+        },
         answerCallback: async () => { await ctx.answerCbQuery(); },
         getPendingNote: () => pending.get(userId),
         clearPendingNote: () => { pending.delete(userId); },
