@@ -24,9 +24,14 @@ export function createNotePlugin(
 
       if (args.form === 'A') {
         const candidate = args.filePath;
+        const fullText = args.noteText ? `${candidate} ${args.noteText}` : candidate;
+
         if (!candidate.includes('/')) {
           const allFiles = await listFiles(octokit, config, config.note.allowedPaths);
-          const matches = allFiles.filter(f => path.basename(f) === candidate);
+          const matches = allFiles.filter(f =>
+            path.basename(f) === candidate ||
+            path.basename(f, path.extname(f)) === candidate,
+          );
           if (matches.length === 1) {
             const err = validateNotePath(matches[0], config.note.allowedPaths, config.note.allowedExtensions);
             if (err) { await ctx.replyText(err); return; }
@@ -41,7 +46,18 @@ export function createNotePlugin(
             })));
             return;
           }
+          // No file match — treat full text as note and show picker
+          if (allFiles.length === 0) {
+            await ctx.replyText(`No files found in allowed paths: ${config.note.allowedPaths.join(', ')}.`);
+            return;
+          }
+          ctx.setPendingNote(fullText);
+          await ctx.showOptions('Choose a file to append your note to:', allFiles.sort().slice(0, 20).map(f => ({
+            label: f, callbackData: `note_file:${f}`,
+          })));
+          return;
         }
+
         const err = validateNotePath(candidate, config.note.allowedPaths, config.note.allowedExtensions);
         if (err) { await ctx.replyText(err); return; }
         await appendNoteToFile(octokit, config, candidate, args.noteText, ctx.username);

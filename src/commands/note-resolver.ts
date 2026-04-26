@@ -5,8 +5,6 @@ export type NoteArgsResult =
   | { form: 'B'; shortcutKey: string; noteText: string }
   | { form: 'C'; noteText: string };
 
-const FILE_TOKEN_RE = /[/]|\.(?:md|txt|MD|TXT)$/;
-
 export function parseNoteArgs(text: string, shortcuts: Record<string, string>): NoteArgsResult {
   const trimmed = text.trim();
   if (!trimmed) return { form: 'C', noteText: '' };
@@ -19,11 +17,9 @@ export function parseNoteArgs(text: string, shortcuts: Record<string, string>): 
     return { form: 'B', shortcutKey: firstToken, noteText: rest };
   }
 
-  if (FILE_TOKEN_RE.test(firstToken)) {
-    return { form: 'A', filePath: firstToken, noteText: rest };
-  }
-
-  return { form: 'C', noteText: trimmed };
+  // Always treat the first token as a potential filename.
+  // note.ts falls back to the full-picker Form C if no matching file is found.
+  return { form: 'A', filePath: firstToken, noteText: rest };
 }
 
 export function validateNotePath(

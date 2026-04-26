@@ -26,9 +26,14 @@ describe('parseNoteArgs', () => {
     expect(result).toEqual({ form: 'A', filePath: 'log.txt', noteText: 'entry text' });
   });
 
-  it('detects Form C when first token is not a shortcut or path', () => {
-    const result = parseNoteArgs('We agreed to deprecate the API.', shortcuts);
-    expect(result).toEqual({ form: 'C', noteText: 'We agreed to deprecate the API.' });
+  it('detects Form A for a bare word (potential filename, falls back in note.ts if no match)', () => {
+    const result = parseNoteArgs('some rrrr', shortcuts);
+    expect(result).toEqual({ form: 'A', filePath: 'some', noteText: 'rrrr' });
+  });
+
+  it('detects Form A for any first token even without extension', () => {
+    const result = parseNoteArgs('meeting Sprint recap', shortcuts);
+    expect(result).toEqual({ form: 'A', filePath: 'meeting', noteText: 'Sprint recap' });
   });
 
   it('detects Form C when text is empty', () => {
