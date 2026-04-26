@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest';
+import type { Logger } from 'pino';
 import type { Config, AIProvider, CommandPlugin } from '../types.js';
 import { fetchCommits, fetchCommitDiff } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
@@ -50,6 +51,7 @@ export function createSummaryPlugin(
   octokit: Octokit,
   config: Config,
   aiProvider: AIProvider,
+  log: Logger,
 ): { plugin: CommandPlugin } {
   const plugin: CommandPlugin = {
     command: 'summary',
@@ -75,7 +77,8 @@ export function createSummaryPlugin(
         let diff: string;
         try {
           diff = await fetchCommitDiff(octokit, config, commit.sha);
-        } catch {
+        } catch (err) {
+          log.error({ err, sha: commit.shortSha }, 'failed to fetch commit diff');
           diff = `(diff unavailable for ${commit.shortSha})`;
         }
         const existing = authorDiffs.get(commit.authorLogin) ?? [];
@@ -88,7 +91,8 @@ export function createSummaryPlugin(
         let summary: string;
         try {
           summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage);
-        } catch {
+        } catch (err) {
+          log.error({ err, authorLogin }, 'AI summarisation failed');
           summary = commits
             .filter(c => c.authorLogin === authorLogin)
             .map(c => `- ${c.message} (${c.shortSha})`)

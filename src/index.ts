@@ -17,10 +17,10 @@ const octokit = getOctokit(config);
 const aiProvider = createAIProvider(config);
 const adapter = new TelegramAdapter(config, log);
 
-registerCommands(adapter, octokit, config, aiProvider);
+registerCommands(adapter, octokit, config, aiProvider, log);
 
 const squashJob = createSquashJob(octokit, config, adapter);
-const dailySummaryJob = createDailySummaryJob(octokit, config, adapter, aiProvider);
+const dailySummaryJob = createDailySummaryJob(octokit, config, adapter, aiProvider, log);
 startScheduler([squashJob, dailySummaryJob], config.scheduler.nightlyCron, log);
 
 await adapter.start();

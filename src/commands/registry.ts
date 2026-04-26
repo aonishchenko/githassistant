@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest';
+import type { Logger } from 'pino';
 import type { MessagingAdapter, Config, AIProvider, CommandPlugin, AdapterContext } from '../types.js';
 import { createHelpPlugin } from './help.js';
 import { createNotePlugin } from './note.js';
@@ -9,6 +10,7 @@ export function registerCommands(
   octokit: Octokit,
   config: Config,
   aiProvider: AIProvider,
+  log: Logger,
 ): void {
   const helpPlugin = createHelpPlugin(config);
   adapter.onCommand(helpPlugin.command, helpPlugin.handler);
@@ -17,7 +19,7 @@ export function registerCommands(
   adapter.onCommand(notePlugin.command, withAuth(notePlugin, adapter));
   adapter.onCallback('note_file', noteCallback);
 
-  const { plugin: summaryPlugin } = createSummaryPlugin(octokit, config, aiProvider);
+  const { plugin: summaryPlugin } = createSummaryPlugin(octokit, config, aiProvider, log);
   adapter.onCommand(summaryPlugin.command, summaryPlugin.handler);
 }
 

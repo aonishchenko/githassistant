@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest';
+import type { Logger } from 'pino';
 import type { Config, MessagingAdapter, AIProvider, JobPlugin, GitHubCommit } from '../types.js';
 import { fetchCommits, fetchCommitDiff } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
@@ -11,6 +12,7 @@ export function createDailySummaryJob(
   config: Config,
   adapter: MessagingAdapter,
   aiProvider: AIProvider,
+  log: Logger,
 ): JobPlugin {
   return {
     name: 'dailySummary',
@@ -35,7 +37,8 @@ export function createDailySummaryJob(
         let diff: string;
         try {
           diff = await fetchCommitDiff(octokit, config, commit.sha);
-        } catch {
+        } catch (err) {
+          log.error({ err, sha: commit.shortSha }, 'failed to fetch commit diff');
           diff = `(diff unavailable for ${commit.shortSha})`;
         }
         const existing = authorDiffs.get(commit.authorLogin) ?? [];
@@ -48,7 +51,8 @@ export function createDailySummaryJob(
         let summary: string;
         try {
           summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage);
-        } catch {
+        } catch (err) {
+          log.error({ err, authorLogin }, 'AI summarisation failed');
           summary = commits
             .filter(c => c.authorLogin === authorLogin)
             .map(c => `- ${c.message} (${c.shortSha})`)
@@ -75,7 +79,7 @@ if (isMain) {
   const octokit = new Octokit({ auth: config.github.token });
   const adapter = new TelegramAdapter(config, log);
   const ai = createAIProvider(config);
-  createDailySummaryJob(octokit, config, adapter, ai).handler().catch((err: unknown) => {
+  createDailySummaryJob(octokit, config, adapter, ai, log).handler().catch((err: unknown) => {
     log.error(err);
     process.exit(1);
   });
