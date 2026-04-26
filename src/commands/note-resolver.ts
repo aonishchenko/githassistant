@@ -31,9 +31,11 @@ export function validateNotePath(
   allowedPaths: string[],
   allowedExtensions: string[],
 ): string | null {
-  const ext = path.extname(filePath).slice(1).toLowerCase();
-  if (!allowedExtensions.includes(ext)) {
-    return `File extension ".${ext}" is not allowed. Allowed extensions: ${allowedExtensions.map(e => `.${e}`).join(', ')}.`;
+  if (!allowedExtensions.includes('*')) {
+    const ext = path.extname(filePath).slice(1).toLowerCase();
+    if (!allowedExtensions.includes(ext)) {
+      return `File extension ".${ext}" is not allowed. Allowed extensions: ${allowedExtensions.map(e => `.${e}`).join(', ')}.`;
+    }
   }
 
   const resolved = path.normalize(filePath);

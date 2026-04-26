@@ -53,4 +53,10 @@ describe('validateNotePath', () => {
   it('rejects disallowed file extensions', () => {
     expect(validateNotePath('docs/file.js', allowedPaths, allowedExtensions)).toMatch(/extension/i);
   });
+
+  it('allows any extension when * is configured', () => {
+    expect(validateNotePath('docs/file.js', allowedPaths, ['*'])).toBeNull();
+    expect(validateNotePath('docs/data.csv', allowedPaths, ['*'])).toBeNull();
+    expect(validateNotePath('docs/image.png', allowedPaths, ['*'])).toBeNull();
+  });
 });
