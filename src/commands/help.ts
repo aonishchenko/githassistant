@@ -15,6 +15,7 @@ export function createHelpPlugin(config: Config): CommandPlugin {
         `GitHAssistant commands:\n\n` +
         `/note [file|shortcut] <text>  — Add a note to a project file\n` +
         `/summary [period]             — Summarise recent changes (default: last 24h)\n` +
+        `/squash [period]              — Squash commits per author (default: last 24h)\n` +
         `/help                         — Show this message` +
         shortcutLine,
       );

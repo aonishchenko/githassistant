@@ -63,6 +63,86 @@ export function buildSquashMessage(authorLogin: string, dateStr: string, commits
   return `daily(@${authorLogin}): ${commits.length} changes on ${dateStr}\n\n${bullets}`;
 }
 
+export async function runSquash(
+  octokit: Octokit,
+  config: Config,
+  window: SquashWindow,
+  send: (msg: string) => Promise<void>,
+): Promise<void> {
+  const { since, until, dateStr } = window;
+
+  let commits: GitHubCommit[];
+  try {
+    commits = await fetchCommits(octokit, config, since, until);
+  } catch (err: unknown) {
+    await send(`❌ Squash failed: could not fetch commits. ${(err as Error).message}`);
+    return;
+  }
+
+  if (commits.length === 0) {
+    await send(`No commits on ${dateStr} — nothing to squash.`);
+    return;
+  }
+
+  const allSorted = [...commits].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  const oldest = allSorted[0];
+  const baseSha = oldest.parentShas[0];
+
+  if (!baseSha) {
+    await send(`❌ Squash aborted: cannot squash the first commit on the branch.`);
+    return;
+  }
+
+  const groups = groupByAuthor(commits);
+  groups.sort((a, b) => {
+    const aEarliest = Math.min(...a.commits.map(c => new Date(c.date).getTime()));
+    const bEarliest = Math.min(...b.commits.map(c => new Date(c.date).getTime()));
+    return aEarliest - bEarliest;
+  });
+
+  const needsSquash = groups.some(g => g.commits.length > 1);
+  if (!needsSquash) {
+    await send(`✅ Nothing to squash on ${dateStr} — each author had only 1 commit.`);
+    return;
+  }
+
+  let prevSha = baseSha;
+  let squashedCount = 0;
+  let authorsSquashed = 0;
+
+  try {
+    for (const group of groups) {
+      const sortedGroupCommits = [...group.commits].sort(
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      );
+      const lastCommit = sortedGroupCommits[sortedGroupCommits.length - 1];
+
+      let message: string;
+      if (group.commits.length === 1) {
+        message = group.commits[0].message;
+      } else {
+        message = buildSquashMessage(group.authorLogin, dateStr, sortedGroupCommits);
+        squashedCount += group.commits.length;
+        authorsSquashed++;
+      }
+
+      prevSha = await createCommit(octokit, config, {
+        message,
+        treeSha: lastCommit.treeSha,
+        parentSha: prevSha,
+      });
+    }
+
+    await updateBranchRef(octokit, config, prevSha);
+    await send(`✅ Squashed ${squashedCount} commits from ${authorsSquashed} author(s) on ${dateStr}.`);
+  } catch (err: unknown) {
+    await send(
+      `❌ Squash failed mid-way on ${dateStr}. Branch may be in a partially rewritten state. ` +
+      `Error: ${(err as Error).message}. Please check branch history manually.`,
+    );
+  }
+}
+
 export function createSquashJob(
   octokit: Octokit,
   config: Config,
@@ -73,82 +153,7 @@ export function createSquashJob(
     name: 'squash',
     handler: async () => {
       if (!config.behavior.squashEnabled) return;
-
-      const { since, until, dateStr } = buildWindow();
-
-      let commits: GitHubCommit[];
-      try {
-        commits = await fetchCommits(octokit, config, since, until);
-      } catch (err: unknown) {
-        await adapter.sendMessage(`❌ Squash job failed: could not fetch commits. ${(err as Error).message}`);
-        return;
-      }
-
-      if (commits.length === 0) {
-        await adapter.sendMessage(`No commits on ${dateStr} — nothing to squash.`);
-        return;
-      }
-
-      const allSorted = [...commits].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-      const oldest = allSorted[0];
-      const baseSha = oldest.parentShas[0];
-
-      if (!baseSha) {
-        await adapter.sendMessage(`❌ Squash aborted: cannot squash the first commit on the branch.`);
-        return;
-      }
-
-      const groups = groupByAuthor(commits);
-      groups.sort((a, b) => {
-        const aEarliest = Math.min(...a.commits.map(c => new Date(c.date).getTime()));
-        const bEarliest = Math.min(...b.commits.map(c => new Date(c.date).getTime()));
-        return aEarliest - bEarliest;
-      });
-
-      const needsSquash = groups.some(g => g.commits.length > 1);
-      if (!needsSquash) {
-        await adapter.sendMessage(`✅ Nothing to squash on ${dateStr} — each author had only 1 commit.`);
-        return;
-      }
-
-      let prevSha = baseSha;
-      let squashedCount = 0;
-      let authorsSquashed = 0;
-
-      try {
-        for (const group of groups) {
-          const sortedGroupCommits = [...group.commits].sort(
-            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-          );
-          const lastCommit = sortedGroupCommits[sortedGroupCommits.length - 1];
-
-          let message: string;
-          if (group.commits.length === 1) {
-            message = group.commits[0].message;
-          } else {
-            message = buildSquashMessage(group.authorLogin, dateStr, sortedGroupCommits);
-            squashedCount += group.commits.length;
-            authorsSquashed++;
-          }
-
-          prevSha = await createCommit(octokit, config, {
-            message,
-            treeSha: lastCommit.treeSha,
-            parentSha: prevSha,
-          });
-        }
-
-        await updateBranchRef(octokit, config, prevSha);
-
-        await adapter.sendMessage(
-          `✅ Squashed ${squashedCount} commits from ${authorsSquashed} author(s) on ${dateStr}.`,
-        );
-      } catch (err: unknown) {
-        await adapter.sendMessage(
-          `❌ Squash job failed mid-way on ${dateStr}. Branch may be in a partially rewritten state. ` +
-          `Error: ${(err as Error).message}. Please check branch history manually.`,
-        );
-      }
+      await runSquash(octokit, config, buildWindow(), msg => adapter.sendMessage(msg));
     },
   };
 }

@@ -4,6 +4,7 @@ import type { MessagingAdapter, Config, AIProvider, CommandPlugin, AdapterContex
 import { createHelpPlugin } from './help.js';
 import { createNotePlugin } from './note.js';
 import { createSummaryPlugin } from './summary.js';
+import { createSquashPlugin } from './squash.js';
 
 export function registerCommands(
   adapter: MessagingAdapter,
@@ -21,6 +22,9 @@ export function registerCommands(
 
   const { plugin: summaryPlugin } = createSummaryPlugin(octokit, config, aiProvider, log);
   adapter.onCommand(summaryPlugin.command, summaryPlugin.handler);
+
+  const squashPlugin = createSquashPlugin(octokit, config);
+  adapter.onCommand(squashPlugin.command, withAuth(squashPlugin, adapter));
 }
 
 function withAuth(
