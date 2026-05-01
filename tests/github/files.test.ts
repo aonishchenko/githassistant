@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Octokit } from '@octokit/rest';
 import type { Config } from '../../src/types.js';
-import { getFile, writeFile, listFiles } from '../../src/github/files.js';
+import { getFile, writeFile, listFiles, getFileCreationDate } from '../../src/github/files.js';
 
 const config: Config = {
   telegram: { botToken: '', groupId: '', allowedUsers: [] },
@@ -87,5 +87,37 @@ describe('listFiles', () => {
     const octokit = makeOctokit(vi.fn().mockRejectedValue(err));
     const files = await listFiles(octokit, config, ['docs']);
     expect(files).toEqual([]);
+  });
+});
+
+describe('getFileCreationDate', () => {
+  it('returns the date of the oldest commit for a file', async () => {
+    const octokit = {
+      paginate: vi.fn().mockResolvedValue([
+        { commit: { author: { date: '2026-04-01T10:00:00Z' } } },
+        { commit: { author: { date: '2026-03-15T08:00:00Z' } } },
+      ]),
+      repos: { listCommits: vi.fn() },
+    } as unknown as Octokit;
+    const result = await getFileCreationDate(octokit, config, 'meetings/standup.md');
+    expect(result).toEqual(new Date('2026-03-15T08:00:00Z'));
+  });
+
+  it('returns null when no commits found for the file', async () => {
+    const octokit = {
+      paginate: vi.fn().mockResolvedValue([]),
+      repos: { listCommits: vi.fn() },
+    } as unknown as Octokit;
+    const result = await getFileCreationDate(octokit, config, 'meetings/missing.md');
+    expect(result).toBeNull();
+  });
+
+  it('returns null on API error', async () => {
+    const octokit = {
+      paginate: vi.fn().mockRejectedValue(new Error('API error')),
+      repos: { listCommits: vi.fn() },
+    } as unknown as Octokit;
+    const result = await getFileCreationDate(octokit, config, 'meetings/error.md');
+    expect(result).toBeNull();
   });
 });

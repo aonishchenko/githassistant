@@ -63,6 +63,28 @@ export async function listFiles(
   return results;
 }
 
+export async function getFileCreationDate(
+  octokit: Octokit,
+  config: Config,
+  filePath: string,
+): Promise<Date | null> {
+  try {
+    const commits = await octokit.paginate(octokit.repos.listCommits, {
+      owner: config.github.owner,
+      repo: config.github.repo,
+      path: filePath,
+      per_page: 100,
+    });
+    if (commits.length === 0) return null;
+    const oldest = commits[commits.length - 1] as { commit: { author?: { date?: string }; committer?: { date?: string } } };
+    const dateStr = oldest.commit.author?.date ?? oldest.commit.committer?.date;
+    if (!dateStr) return null;
+    return new Date(dateStr);
+  } catch {
+    return null;
+  }
+}
+
 async function collectFiles(
   octokit: Octokit,
   config: Config,
