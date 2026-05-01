@@ -1,22 +1,39 @@
 # GitHAssistant
 
-A Telegram bot that keeps your GitHub project documented, summarised, and tidy — automatically.
+> Your GitHub project, fully alive in Telegram — notes committed, work summarised, history cleaned up, meetings digested. All from chat.
+
+A Telegram bot that keeps your GitHub project documented, summarised, and tidy — automatically. Add it to your team group and it becomes a silent, always-on member that never forgets to write things down.
+
+---
+
+## What you get out of the box
+
+| | |
+|---|---|
+| 📝 **Instant notes** | Send a thought in Telegram, it's committed to your repo in seconds |
+| 📊 **Daily digest** | Every morning: a plain-English summary of who did what, posted automatically |
+| 🗂️ **Clean history** | Nightly squash keeps your commit log readable without losing any work |
+| 🎙️ **Meeting summaries** | Drop a transcript, get back exec summary + action items + full topic breakdown |
+
+---
 
 ## Why GitHAssistant?
 
 **Working on a project with your team in a Telegram group?**
 
-GitHAssistant connects your Telegram group directly to your GitHub repository. No context-switching, no web UI — everything through chat.
+GitHAssistant connects your Telegram group directly to your GitHub repository. No context-switching, no web UI — everything through chat. It turns your casual group conversation into a well-documented, well-organised project record.
 
 ---
 
 **Capture ideas without leaving Telegram.**
-Are you on the go (AFK, commuting, in a meeting) and have ideas or decisions you want recorded in your project documentation? Just send a message to the bot and it commits the note straight to the right file in your repo.
+On the go, commuting, mid-meeting — have a decision or idea you want on record? Send it to the bot and it commits the note straight to the right file in your repo.
 
 ```
 /note i New brand direction: wordmark only, drop the icon.
 /note docs/meeting-notes.md Agreed to deprecate the v1 API by end of Q2.
 ```
+
+The bot finds the file automatically. Use shortcuts, partial names, or just let it show you a picker.
 
 ---
 
@@ -30,6 +47,19 @@ Want a plain-language summary of your team's GitHub contributions for the last d
 ```
 
 Every night the bot posts the daily digest automatically without anyone having to ask.
+
+---
+
+**Never lose what was said in a meeting.**
+Store meeting transcripts in a folder in your repo. The bot reads each transcript, runs it through a structured AI analysis, and saves back a full summary with an executive overview, a table of action items with owners and deadlines, and a detailed breakdown by discussion topic.
+
+```
+/meeting-summary                         → pick a transcript from the folder
+/meeting-summary 2026-04-28-standup.md   → summarise one specific meeting
+/meeting-summary 1w                      → summarise all meetings from the last week
+```
+
+Already summarised? The bot won't regenerate — it reuses the existing file. Summaries are committed back to your repo alongside the transcripts, so your whole team can find them without digging through chat history.
 
 ---
 
@@ -67,6 +97,18 @@ The following must be set or the process exits with a descriptive error:
 
 All variables with defaults are documented in `.env.example`.
 
+## Optional Environment Variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `MEETING_NOTES_FOLDER` | `meetings` | GitHub folder path containing meeting transcripts |
+| `NOTE_ALLOWED_PATHS` | `docs` | Comma-separated folders `/note` can write to |
+| `NOTE_SHORTCUTS` | _(none)_ | Comma-separated `key=path` shortcuts, e.g. `i=docs/ideas.md` |
+| `NIGHTLY_CRON` | `0 2 * * *` | Cron expression for nightly jobs |
+| `TIMEZONE` | `UTC` | Timezone for nightly job scheduling |
+| `SUMMARY_MAX_DAYS` | `7` | Maximum period window for `/summary` and `/meeting-summary` |
+| `SQUASH_ENABLED` | `true` | Set to `false` to disable the nightly squash job |
+
 ## Commands
 
 | Command | Auth | Description |
@@ -74,11 +116,12 @@ All variables with defaults are documented in `.env.example`.
 | `/note [file\|shortcut] <text>` | Required | Append a note to a repo file |
 | `/summary [period]` | None | AI-generated summary of recent commits by author |
 | `/squash [period]` | Required | Squash multiple commits into one per author |
+| `/meeting-summary [file\|period]` | Required | Summarise meeting transcript(s) from the meetings folder |
 | `/help` | None | Show command reference |
 
 **Auth** means the sender must be in `TELEGRAM_ALLOWED_USERS` or a group admin.
 
-**Period formats** (applies to `/summary` and `/squash`): none (last 24h), `3d`, `1w`, `2025-04-20`
+**Period formats** (applies to `/summary`, `/squash`, and `/meeting-summary`): none (last 24h), `3d`, `1w`, `2025-04-20`
 
 ### /note forms
 
@@ -89,6 +132,16 @@ The bot finds the right file automatically:
 - **Bare name (no extension):** `/note meeting Sprint recap.` — matches `docs/meeting.md` or `docs/drive/meeting` by basename
 - **Shortcut:** `/note i New idea.` — resolves via `NOTE_SHORTCUTS` config
 - **No path:** `/note Sprint recap.` — shows inline file picker; tap a file to append
+
+### /meeting-summary forms
+
+- **No args:** `/meeting-summary` — shows a picker of all transcript files in `MEETING_NOTES_FOLDER`
+- **Filename:** `/meeting-summary 2026-04-28-standup-transcript.md` — summarise one file
+- **Period:** `/meeting-summary 1w` — summarise all transcripts from the last week (skips any that already have a summary)
+
+Summary files are saved next to the transcript in `MEETING_NOTES_FOLDER`. Naming: `*-transcript.md` → `*-summary.md`; other filenames get `-summary` appended before the extension.
+
+Period filtering uses dates embedded in the filename (e.g. `2026-04-28-standup.md`) and falls back to the file's creation date in git history.
 
 ## Nightly Jobs
 
@@ -142,6 +195,15 @@ npm run job:summary   # Run daily summary job immediately
 - [ ] Nothing to squash (each author has 1 commit) → confirmation message
 - [ ] Unauthorised user → "You don't have permission to use this command."
 
+### /meeting-summary
+- [ ] `/meeting-summary` → shows transcript picker (summary files excluded from list)
+- [ ] `/meeting-summary <filename>` → generates and commits summary
+- [ ] `/meeting-summary <filename>` (summary already exists) → "already exists" message, no new file
+- [ ] `/meeting-summary 1w` → generates summaries for all transcripts in last week, skips existing ones
+- [ ] `/meeting-summary` → select from picker → summary generated and committed
+- [ ] File not found → "File not found: `<filename>`."
+- [ ] Unauthorised user → "You don't have permission to use this command."
+
 ### Nightly Jobs (manual trigger)
 - [ ] `npm run job:squash` → ✅ or "nothing to squash" message appears in Telegram
 - [ ] `npm run job:summary` → daily digest posted in Telegram group
@@ -152,7 +214,9 @@ npm run job:summary   # Run daily summary job immediately
 Three subsystems wired at startup:
 
 1. **Config** — validates env vars at boot, exits with descriptive error on missing vars
-2. **Messaging** — `TelegramAdapter` wraps Telegraf, handles group-only filtering, rate limiting (10 cmd/min per user), and inline keyboard state for `/note` file picker
+2. **Messaging** — `TelegramAdapter` wraps Telegraf, handles group-only filtering, rate limiting (10 cmd/min per user), and inline keyboard state for `/note` and `/meeting-summary` file pickers
 3. **Scheduler** — node-cron runs squash + daily summary jobs nightly at `NIGHTLY_CRON` (default 02:00 UTC)
+
+AI skills live in `.claude/skills/` as plain Markdown files and are loaded at runtime — swap or edit a skill file to change how the AI behaves without touching code.
 
 All command and job logic receives dependencies via injection — no Telegraf context leaks into business logic.
