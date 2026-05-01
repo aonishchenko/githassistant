@@ -51,6 +51,9 @@ export function loadConfig(): Config {
       allowedExtensions: (process.env.NOTE_ALLOWED_EXTENSIONS ?? 'md,txt')
         .split(',').map(s => s.trim()).filter(Boolean),
     },
+    meeting: {
+      notesFolder: process.env.MEETING_NOTES_FOLDER ?? 'meetings',
+    },
     ai: {
       provider: process.env.AI_PROVIDER ?? 'anthropic',
       anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',

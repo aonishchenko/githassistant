@@ -15,6 +15,9 @@ export interface Config {
     shortcuts: Record<string, string>;
     allowedExtensions: string[];
   };
+  meeting: {
+    notesFolder: string;
+  };
   ai: {
     provider: string;
     anthropicApiKey: string;
@@ -89,7 +92,7 @@ export interface JobPlugin {
 }
 
 export interface AIProvider {
-  summarise(prompt: string, content: string): Promise<string>;
+  summarise(prompt: string, content: string, maxTokens?: number): Promise<string>;
 }
 
 export interface GitHubCommit {
