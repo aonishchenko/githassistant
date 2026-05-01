@@ -5,6 +5,7 @@ import { createHelpPlugin } from './help.js';
 import { createNotePlugin } from './note.js';
 import { createSummaryPlugin } from './summary.js';
 import { createSquashPlugin } from './squash.js';
+import { createMeetingSummaryPlugin } from './meeting-summary.js';
 
 export function registerCommands(
   adapter: MessagingAdapter,
@@ -25,6 +26,11 @@ export function registerCommands(
 
   const squashPlugin = createSquashPlugin(octokit, config);
   adapter.onCommand(squashPlugin.command, withAuth(squashPlugin, adapter));
+
+  const { plugin: meetingPlugin, callbackHandler: meetingCallback } =
+    createMeetingSummaryPlugin(octokit, config, aiProvider, log);
+  adapter.onCommand(meetingPlugin.command, withAuth(meetingPlugin, adapter));
+  adapter.onCallback('meeting_file', meetingCallback);
 }
 
 function withAuth(
