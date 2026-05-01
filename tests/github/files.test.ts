@@ -10,6 +10,7 @@ const config: Config = {
   ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '' },
   scheduler: { nightlyCron: '', timezone: 'UTC' },
   behavior: { summaryMaxDays: 7, squashEnabled: true, summaryLanguage: 'en', logLevel: 'info', rateLimitPerMin: 10 },
+  meeting: { notesFolder: 'meetings' },
 };
 
 function makeOctokit(getContentImpl: ReturnType<typeof vi.fn>, createOrUpdateImpl?: ReturnType<typeof vi.fn>): Octokit {

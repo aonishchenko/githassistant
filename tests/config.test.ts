@@ -20,6 +20,7 @@ function clearEnv() {
   delete process.env.NOTE_ALLOWED_EXTENSIONS;
   delete process.env.NOTE_SHORTCUTS;
   delete process.env.ANTHROPIC_API_KEY;
+  delete process.env.MEETING_NOTES_FOLDER;
 }
 
 describe('loadConfig', () => {
@@ -68,5 +69,12 @@ describe('loadConfig', () => {
     expect(config.behavior.summaryMaxDays).toBe(7);
     expect(config.behavior.squashEnabled).toBe(true);
     expect(config.ai.anthropicModel).toBe('claude-sonnet-4-5');
+    expect(config.meeting.notesFolder).toBe('meetings');
+  });
+
+  it('reads MEETING_NOTES_FOLDER env var', () => {
+    setEnv({ ...REQUIRED, MEETING_NOTES_FOLDER: 'custom/meetings' });
+    const config = loadConfig();
+    expect(config.meeting.notesFolder).toBe('custom/meetings');
   });
 });
