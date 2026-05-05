@@ -70,7 +70,7 @@ export class CloudflareAdapter implements MessagingAdapter {
   async sendDocument(filename: string, content: Buffer, caption?: string): Promise<void> {
     const form = new FormData();
     form.append('chat_id', this.config.telegram.groupId);
-    form.append('document', new Blob([content]), filename);
+    form.append('document', new Blob([new Uint8Array(content)]), filename);
     if (caption) form.append('caption', caption);
     await fetch(`${this.apiBase}/sendDocument`, { method: 'POST', body: form });
   }
@@ -125,7 +125,8 @@ export class CloudflareAdapter implements MessagingAdapter {
 
     const pending = await getPendingState(this.kv, userId);
     let pendingText: string | undefined = pending?.text;
-    let kvAction: { action: 'set'; text: string } | { action: 'clear' } | null = null;
+    let kvSetText: string | null = null;
+    let kvClear = false;
 
     const replyFn = async (msg: string, opts?: SendOptions) => {
       await this.telegramPost('sendMessage', {
@@ -149,9 +150,9 @@ export class CloudflareAdapter implements MessagingAdapter {
           },
         });
       },
-      setPendingNote: (t: string) => { pendingText = t; kvAction = { action: 'set', text: t }; },
+      setPendingNote: (t: string) => { pendingText = t; kvSetText = t; },
       getPendingNote: () => pendingText,
-      clearPendingNote: () => { pendingText = undefined; kvAction = { action: 'clear' }; },
+      clearPendingNote: () => { pendingText = undefined; kvClear = true; },
     };
 
     try {
@@ -160,9 +161,9 @@ export class CloudflareAdapter implements MessagingAdapter {
       await replyFn('An unexpected error occurred. Please try again.');
     }
 
-    if (kvAction?.action === 'set') {
-      await setPendingState(this.kv, userId, { text: (kvAction as { action: 'set'; text: string }).text });
-    } else if (kvAction?.action === 'clear') {
+    if (kvSetText !== null) {
+      await setPendingState(this.kv, userId, { text: kvSetText });
+    } else if (kvClear) {
       await clearPendingState(this.kv, userId);
     }
   }
