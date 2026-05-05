@@ -75,15 +75,6 @@ The nightly job also runs this automatically so the history stays clean without 
 
 ---
 
-## Setup
-
-```bash
-cp .env.example .env
-# Fill in all required values (see .env.example for descriptions)
-npm install
-npm run dev      # tsx watch mode for local development
-```
-
 ## Required Environment Variables
 
 The following must be set or the process exits with a descriptive error:
@@ -93,7 +84,8 @@ The following must be set or the process exits with a descriptive error:
 - `GITHUB_TOKEN` — Fine-grained PAT: Contents Read+Write, Metadata Read
 - `GITHUB_OWNER` — Repository owner (user or org)
 - `GITHUB_REPO` — Repository name
-- `ANTHROPIC_API_KEY` — From console.anthropic.com (separate from claude.ai, billed by token usage)
+- `ANTHROPIC_API_KEY` — From console.anthropic.com (separate from claude.ai, billed by token usage). Required when `AI_PROVIDER=anthropic` (default).
+- `OPENAI_API_KEY` — From platform.openai.com. Required when `AI_PROVIDER=openai`.
 
 All variables with defaults are documented in `.env.example`.
 
@@ -101,6 +93,9 @@ All variables with defaults are documented in `.env.example`.
 
 | Variable | Default | Description |
 |---|---|---|
+| `AI_PROVIDER` | `anthropic` | AI backend: `anthropic` or `openai` |
+| `ANTHROPIC_MODEL` | `claude-sonnet-4-5` | Anthropic model name |
+| `OPENAI_MODEL` | `gpt-4o` | OpenAI model name (used when `AI_PROVIDER=openai`) |
 | `MEETING_NOTES_FOLDER` | `meetings` | GitHub folder path containing meeting transcripts |
 | `NOTE_ALLOWED_PATHS` | `docs` | Comma-separated folders `/note` can write to |
 | `NOTE_SHORTCUTS` | _(none)_ | Comma-separated `key=path` shortcuts, e.g. `i=docs/ideas.md` |
@@ -152,12 +147,91 @@ Both jobs run automatically at `NIGHTLY_CRON` (default 02:00 UTC):
 
 Set `SQUASH_ENABLED=false` to disable squash while keeping the digest running.
 
-## Deployment (Render.com)
+## Deployment (Local / Render.com)
+
+```bash
+cp .env.example .env
+# Fill in all required values (see .env.example for descriptions)
+npm install
+npm run dev      # tsx watch mode for local development
+```
+
+For Render.com:
 
 - Service type: **Background Worker**
 - Build command: `npm ci && npm run build`
 - Start command: `node dist/index.js`
 - Set env vars via Render dashboard — never commit `.env`
+
+## Deployment (Cloudflare Workers)
+
+### First-time setup
+
+```bash
+# 1. Install Wrangler globally (or use npx)
+npm install -g wrangler
+
+# 2. Authenticate with your Cloudflare account
+wrangler login
+
+# 3. Create the KV namespace for callback state
+wrangler kv namespace create GITHASSISTANT_KV
+# Copy the returned `id` value into wrangler.toml → kv_namespaces[0].id
+
+# 4. Set required secrets (you will be prompted to type each value)
+wrangler secret put TELEGRAM_BOT_TOKEN
+wrangler secret put TELEGRAM_GROUP_ID
+wrangler secret put GITHUB_TOKEN
+wrangler secret put GITHUB_OWNER
+wrangler secret put GITHUB_REPO
+wrangler secret put ANTHROPIC_API_KEY   # or OPENAI_API_KEY + AI_PROVIDER=openai
+
+# Optional secrets (have defaults):
+wrangler secret put TELEGRAM_ALLOWED_USERS   # comma-separated usernames
+wrangler secret put AI_PROVIDER              # anthropic or openai
+
+# 5. Deploy
+npm run cf:deploy
+
+# 6. Register the Telegram webhook (one-time, re-run after URL changes)
+CF_WORKER_URL=https://githassistant.<your-subdomain>.workers.dev npm run cf:register-webhook
+```
+
+### Ongoing deployments
+
+```bash
+npm run cf:deploy
+```
+
+### Local development with CF runtime
+
+```bash
+npm run cf:dev   # wrangler dev — runs CF Workers runtime locally on port 8787
+```
+
+### Nightly job schedule
+
+Both jobs run automatically via CF Cron Triggers:
+
+| Job | Schedule | Description |
+|---|---|---|
+| Squash | `0 2 * * *` (02:00 UTC) | Squash each author's commits from yesterday |
+| Daily summary | `0 6 * * *` (06:00 UTC) | Post AI digest of yesterday's changes |
+
+Cron schedules are defined in `wrangler.toml` and cannot be overridden via secrets.
+
+### Free tier limits
+
+Cloudflare Workers free tier is sufficient for normal bot usage:
+
+| Resource | Free limit | Typical bot usage |
+|---|---|---|
+| Requests | 100,000/day | ~2–20/day |
+| Cron Triggers | 5 triggers | 2 triggers |
+| KV reads | 100,000/day | <100/day |
+| KV writes | 1,000/day | <20/day |
+
+> **Note:** CF Workers free tier has a 10ms CPU time limit per request. Since summarisation calls await external AI APIs (Anthropic/OpenAI), and CF counts only active CPU time (not I/O wait), this limit is not a concern in practice. The paid plan ($5/month) raises the limit to 30s CPU and is recommended only for very large meeting transcript batches.
 
 ## Manual Job Triggers
 
@@ -211,12 +285,34 @@ npm run job:summary   # Run daily summary job immediately
 
 ## Architecture
 
-Three subsystems wired at startup:
+GitHAssistant runs in two modes that share all business logic:
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     SHARED CORE (src/)                          │
+│  commands/ · jobs/ · github/ · ai/ · types.ts                   │
+│  All command and job logic receives deps via DI — no platform   │
+│  imports.                                                       │
+└────────────────┬────────────────────────────────┬───────────────┘
+                 │                                │
+    ┌────────────▼────────────┐      ┌────────────▼────────────┐
+    │     Node.js mode         │      │   Cloudflare Workers     │
+    │   (src/index.ts)         │      │   (src/platforms/        │
+    │                         │      │    cloudflare/worker.ts) │
+    │  Telegraf long-polling   │      │                         │
+    │  node-cron scheduler     │      │  Telegram webhook        │
+    │  dotenv config           │      │  CF Cron Triggers        │
+    │  Local / Render.com      │      │  CF Workers secrets      │
+    └─────────────────────────┘      │  CF KV (callback state)  │
+                                     └─────────────────────────┘
+```
+
+Three subsystems wired at startup (both modes):
 
 1. **Config** — validates env vars at boot, exits with descriptive error on missing vars
-2. **Messaging** — `TelegramAdapter` wraps Telegraf, handles group-only filtering, rate limiting (10 cmd/min per user), and inline keyboard state for `/note` and `/meeting-summary` file pickers
-3. **Scheduler** — node-cron runs squash + daily summary jobs nightly at `NIGHTLY_CRON` (default 02:00 UTC)
+2. **Messaging** — platform-specific adapter implementing `MessagingAdapter`; Telegram is the only concrete implementation (Telegraf polling for Node.js, webhook handler for CF Workers)
+3. **AI** — pluggable provider behind `AIProvider` interface; Anthropic and OpenAI supported
 
 AI skills live in `.claude/skills/` as plain Markdown files and are loaded at runtime — swap or edit a skill file to change how the AI behaves without touching code.
 
-All command and job logic receives dependencies via injection — no Telegraf context leaks into business logic.
+All command and job logic receives dependencies via injection — no platform context leaks into business logic.
