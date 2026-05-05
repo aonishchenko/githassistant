@@ -3,7 +3,7 @@ import { fileURLToPath } from 'url';
 import { dirname, resolve } from 'path';
 import type { AIProvider } from '../../types.js';
 
-const MEETING_SUMMARY_MAX_TOKENS = 4096;
+const MEETING_SUMMARY_MAX_TOKENS = 8192;
 
 function loadSkill(): string {
   const __dirname = dirname(fileURLToPath(import.meta.url));

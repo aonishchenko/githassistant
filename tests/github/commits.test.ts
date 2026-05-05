@@ -7,7 +7,7 @@ const config: Config = {
   telegram: { botToken: '', groupId: '', allowedUsers: [] },
   github: { token: 'tok', owner: 'owner', repo: 'repo', defaultBranch: 'main' },
   note: { allowedPaths: ['docs'], shortcuts: {}, allowedExtensions: ['md', 'txt'] },
-  ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '' },
+  ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '', openaiApiKey: '', openaiModel: '' },
   scheduler: { nightlyCron: '', timezone: 'UTC' },
   behavior: { summaryMaxDays: 7, squashEnabled: true, summaryLanguage: 'en', logLevel: 'info', rateLimitPerMin: 10 },
   meeting: { notesFolder: 'meetings' },

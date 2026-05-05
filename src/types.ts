@@ -22,6 +22,8 @@ export interface Config {
     provider: string;
     anthropicApiKey: string;
     anthropicModel: string;
+    openaiApiKey: string;
+    openaiModel: string;
   };
   scheduler: {
     nightlyCron: string;

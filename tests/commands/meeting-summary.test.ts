@@ -12,7 +12,7 @@ const config: Config = {
   telegram: { botToken: '', groupId: '', allowedUsers: [] },
   github: { token: '', owner: 'o', repo: 'r', defaultBranch: 'main' },
   note: { allowedPaths: ['docs'], shortcuts: {}, allowedExtensions: ['md'] },
-  ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '' },
+  ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '', openaiApiKey: '', openaiModel: '' },
   scheduler: { nightlyCron: '', timezone: 'UTC' },
   behavior: { summaryMaxDays: 30, squashEnabled: true, summaryLanguage: 'en', logLevel: 'info', rateLimitPerMin: 10 },
   meeting: { notesFolder: 'meetings' },

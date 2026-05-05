@@ -11,7 +11,7 @@ const config: Config = {
     shortcuts: { i: 'docs/ideas.md' },
     allowedExtensions: ['md', 'txt'],
   },
-  ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '' },
+  ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '', openaiApiKey: '', openaiModel: '' },
   scheduler: { nightlyCron: '', timezone: 'UTC' },
   behavior: { summaryMaxDays: 7, squashEnabled: true, summaryLanguage: 'en', logLevel: 'info', rateLimitPerMin: 10 },
   meeting: { notesFolder: 'meetings' },

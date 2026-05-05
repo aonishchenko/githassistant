@@ -55,9 +55,12 @@ export function loadConfig(): Config {
       notesFolder: process.env.MEETING_NOTES_FOLDER ?? 'meetings',
     },
     ai: {
-      provider: process.env.AI_PROVIDER ?? 'anthropic',
+      provider: process.env.AI_PROVIDER
+        ?? (process.env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai'),
       anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? '',
       anthropicModel: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
+      openaiApiKey: process.env.OPENAI_API_KEY ?? '',
+      openaiModel: process.env.OPENAI_MODEL ?? 'gpt-5.3',
     },
     scheduler: {
       nightlyCron: process.env.NIGHTLY_CRON ?? '0 2 * * *',
