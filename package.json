@@ -12,7 +12,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "job:squash": "tsx src/jobs/squash.ts",
-    "job:summary": "tsx src/jobs/dailySummary.ts"
+    "job:summary": "tsx src/jobs/dailySummary.ts",
+    "cf:deploy": "wrangler deploy",
+    "cf:dev": "wrangler dev",
+    "cf:register-webhook": "tsx scripts/register-webhook.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
@@ -24,11 +27,13 @@
     "telegraf": "^4.16.3"
   },
   "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260505.1",
     "@types/node": "^25.6.0",
     "@types/node-cron": "^3.0.11",
     "nock": "^14.0.0",
     "tsx": "^4.19.2",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "wrangler": "^4.88.0"
   }
 }
