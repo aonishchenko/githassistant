@@ -12,7 +12,7 @@ export async function fetchCommits(
     repo: config.github.repo,
     sha: config.github.defaultBranch,
     since: since.toISOString(),
-    per_page: 100,
+    per_page: 40,
   };
   if (until) params.until = until.toISOString();
 

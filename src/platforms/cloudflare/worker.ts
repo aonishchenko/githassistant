@@ -58,7 +58,7 @@ export default {
         message.ack();
       } catch (err) {
         console.error('Failed to process update:', err);
-        message.retry();
+        message.ack(); // don't retry — errors are systemic (rate limits, subrequest limits)
       }
     }
   },
