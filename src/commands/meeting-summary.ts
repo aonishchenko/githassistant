@@ -11,7 +11,7 @@ export function buildSummaryFilename(transcriptPath: string): string {
   const base = path.basename(transcriptPath, ext);
   const dir = path.dirname(transcriptPath);
   const newBase = /transcript/i.test(base)
-    ? base.replace(/transcript/gi, 'summary')
+    ? base.replace(/transcription/gi, 'summary').replace(/transcript/gi, 'summary')
     : `${base}-summary`;
   const result = `${newBase}${ext}`;
   return dir === '.' ? result : `${dir}/${result}`;
