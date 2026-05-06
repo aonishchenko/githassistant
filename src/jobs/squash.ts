@@ -12,6 +12,24 @@ export function groupByAuthor(commits: GitHubCommit[]): AuthorCommitGroup[] {
   return Array.from(map.entries()).map(([authorLogin, commits]) => ({ authorLogin, commits }));
 }
 
+export function groupConsecutiveRuns(commits: GitHubCommit[]): AuthorCommitGroup[] {
+  if (commits.length === 0) return [];
+  const runs: AuthorCommitGroup[] = [];
+  let currentAuthor = commits[0].authorLogin;
+  let currentRun: GitHubCommit[] = [commits[0]];
+  for (let i = 1; i < commits.length; i++) {
+    if (commits[i].authorLogin === currentAuthor) {
+      currentRun.push(commits[i]);
+    } else {
+      runs.push({ authorLogin: currentAuthor, commits: currentRun });
+      currentAuthor = commits[i].authorLogin;
+      currentRun = [commits[i]];
+    }
+  }
+  runs.push({ authorLogin: currentAuthor, commits: currentRun });
+  return runs;
+}
+
 export interface SquashWindow {
   since: Date;
   until: Date;
@@ -93,12 +111,7 @@ export async function runSquash(
     return;
   }
 
-  const groups = groupByAuthor(commits);
-  groups.sort((a, b) => {
-    const aEarliest = Math.min(...a.commits.map(c => new Date(c.date).getTime()));
-    const bEarliest = Math.min(...b.commits.map(c => new Date(c.date).getTime()));
-    return aEarliest - bEarliest;
-  });
+  const groups = groupConsecutiveRuns(allSorted);
 
   const needsSquash = groups.some(g => g.commits.length > 1);
   if (!needsSquash) {

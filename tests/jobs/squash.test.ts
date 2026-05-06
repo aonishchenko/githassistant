@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { groupByAuthor, buildYesterdayWindow, buildWindowUntilNow, buildSquashMessage } from '../../src/jobs/squash.js';
+import { groupByAuthor, groupConsecutiveRuns, buildYesterdayWindow, buildWindowUntilNow, buildSquashMessage } from '../../src/jobs/squash.js';
 import type { GitHubCommit } from '../../src/types.js';
 
 const makeCommit = (sha: string, authorLogin: string, date: string, treeSha = 'tree', parentShas = ['p']): GitHubCommit => ({
@@ -26,6 +26,37 @@ describe('groupByAuthor', () => {
     ];
     const groups = groupByAuthor(commits);
     expect(groups).toHaveLength(1);
+  });
+});
+
+describe('groupConsecutiveRuns', () => {
+  it('keeps interleaved authors as separate runs', () => {
+    const commits = [
+      makeCommit('a1', 'alice', '2025-04-24T10:00:00Z'),
+      makeCommit('b1', 'bob',   '2025-04-24T10:30:00Z'),
+      makeCommit('a2', 'alice', '2025-04-24T11:00:00Z'),
+    ];
+    const runs = groupConsecutiveRuns(commits);
+    expect(runs).toHaveLength(3);
+    expect(runs[0]).toEqual({ authorLogin: 'alice', commits: [commits[0]] });
+    expect(runs[1]).toEqual({ authorLogin: 'bob',   commits: [commits[1]] });
+    expect(runs[2]).toEqual({ authorLogin: 'alice', commits: [commits[2]] });
+  });
+
+  it('merges consecutive same-author commits into one run', () => {
+    const commits = [
+      makeCommit('a1', 'alice', '2025-04-24T10:00:00Z'),
+      makeCommit('a2', 'alice', '2025-04-24T10:30:00Z'),
+      makeCommit('b1', 'bob',   '2025-04-24T11:00:00Z'),
+    ];
+    const runs = groupConsecutiveRuns(commits);
+    expect(runs).toHaveLength(2);
+    expect(runs[0].commits).toHaveLength(2);
+    expect(runs[1].commits).toHaveLength(1);
+  });
+
+  it('returns empty array for empty input', () => {
+    expect(groupConsecutiveRuns([])).toEqual([]);
   });
 });
 

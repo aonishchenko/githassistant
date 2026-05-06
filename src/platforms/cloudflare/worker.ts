@@ -13,8 +13,8 @@ const SUMMARY_CRON = '0 6 * * *';
 
 function makeLogger(): Logger {
   const fmt = (obj: unknown, msg?: string) => {
-    if (typeof obj === 'string') { console.log(obj); return; }
-    console.log(JSON.stringify({ msg, ...(obj as object) }));
+    if (typeof obj === 'string') { console.info(obj); return; }
+    console.info(JSON.stringify({ msg, ...(obj as object) }));
   };
   return {
     info: fmt,

@@ -38,7 +38,7 @@ The bot finds the file automatically. Use shortcuts, partial names, or just let 
 ---
 
 **See who did what, automatically.**
-Want a plain-language summary of your team's GitHub contributions for the last day — or any period? The bot fetches the commits, reads the diffs, and asks Claude to explain the changes in human language, one block per author.
+Want a plain-language summary of your team's GitHub contributions for the last day — or any period? The bot fetches the commits, asks Claude for a 2–3 sentence factual summary per author, and lists the actual files each person changed.
 
 ```
 /summary       → last 24 hours
@@ -59,12 +59,12 @@ Store meeting transcripts in a folder in your repo. The bot reads each transcrip
 /meetingsummary 1w                      → summarise all meetings from the last week
 ```
 
-Already summarised? The bot won't regenerate — it reuses the existing file. Summaries are committed back to your repo alongside the transcripts, so your whole team can find them without digging through chat history.
+Already summarised? The bot won't regenerate — it reads the existing summary file and posts it directly to the chat. Summaries are committed back to your repo alongside the transcripts, so your whole team can find them without digging through chat history. Long summaries are automatically split across multiple messages so nothing gets cut off.
 
 ---
 
 **Clean up noisy commit history.**
-Does someone on the team push a dozen small commits per day? `/squash` merges all of an author's commits for the selected period into one tidy commit per person, keeping the history readable without losing any changes.
+Does someone on the team push a dozen small commits per day? `/squash` merges consecutive commits from the same author into one tidy commit, keeping the history readable without losing any changes. Consecutive-run squashing ensures each squash commit's diff shows only that author's changes — not unrelated work from others who committed in between.
 
 ```
 /squash        → squash last 24 hours
@@ -137,13 +137,15 @@ The bot finds the right file automatically:
 
 Summary files are saved next to the transcript in `MEETING_NOTES_FOLDER`. Naming: `*-transcript.md` → `*-summary.md`; other filenames get `-summary` appended before the extension.
 
-Period filtering uses dates embedded in the filename (e.g. `2026-04-28-standup.md`) and falls back to the file's creation date in git history.
+The transcript picker includes `.md`, `.txt`, and extensionless files. Files containing `summary` in the name are automatically excluded from the picker.
+
+Period filtering uses dates embedded in the filename — both hyphen (`2026-04-28`) and underscore (`2026_04_28`) formats are recognised. Falls back to the file's git creation date if no date is found in the name.
 
 ## Nightly Jobs
 
 Both jobs run automatically at `NIGHTLY_CRON` (default 02:00 UTC):
 
-- **Squash** — merges each author's commits from the previous calendar day into one commit per author on `GITHUB_DEFAULT_BRANCH`
+- **Squash** — merges consecutive same-author commits from the previous calendar day into one commit per run on `GITHUB_DEFAULT_BRANCH`
 - **Daily summary** — posts a per-author AI narrative digest of yesterday's changes to the group
 
 Set `SQUASH_ENABLED=false` to disable squash while keeping the digest running.
@@ -256,25 +258,30 @@ npm run job:summary   # Run daily summary job immediately
 - [ ] Unauthorised user → "You don't have permission to use this command."
 
 ### /summary
-- [ ] `/summary` → last 24h digest
+- [ ] `/summary` → last 24h digest with 2–3 sentence summary and file list per author
 - [ ] `/summary 3d` → 3-day digest
 - [ ] `/summary 1w` → 7-day digest
 - [ ] `/summary 2025-04-20` → since ISO date
 - [ ] `/summary 100d` → "Maximum summary window is N days"
+- [ ] >10 files per author → first 10 shown, remainder noted as "…and N more (M files total)"
 - [ ] AI fallback: set invalid API key → falls back to plain commit list with note
 
 ### /squash
 - [ ] `/squash` → squash last 24h until now
 - [ ] `/squash 3d` → squash last 3 days
 - [ ] `/squash 2025-04-20` → squash since ISO date
+- [ ] Interleaved commits (A→B→A→B) → creates 4 commits (no merging across runs)
+- [ ] Consecutive commits (A→A→B→B) → creates 2 squash commits, each diff shows only that author's changes
 - [ ] Nothing to squash (each author has 1 commit) → confirmation message
 - [ ] Unauthorised user → "You don't have permission to use this command."
 
 ### /meetingsummary
-- [ ] `/meetingsummary` → shows transcript picker (summary files excluded from list)
-- [ ] `/meetingsummary <filename>` → generates and commits summary
-- [ ] `/meetingsummary <filename>` (summary already exists) → "already exists" message, no new file
-- [ ] `/meetingsummary 1w` → generates summaries for all transcripts in last week, skips existing ones
+- [ ] `/meetingsummary` → shows transcript picker (summary files excluded; `.md`, `.txt`, and extensionless files included)
+- [ ] `/meetingsummary <filename>` → generates, commits, and posts summary
+- [ ] `/meetingsummary <filename>` (summary already exists) → posts existing summary content to chat, no regeneration
+- [ ] Long summary (>4000 chars) → split across multiple Telegram messages
+- [ ] `/meetingsummary 1w` → generates summaries for all transcripts in last week; posts existing ones without regenerating
+- [ ] `/meetingsummary 1w` with underscore-date filenames (e.g. `Meeting_2026_04_29.md`) → correctly filtered by filename date
 - [ ] `/meetingsummary` → select from picker → summary generated and committed
 - [ ] File not found → "File not found: `<filename>`."
 - [ ] Unauthorised user → "You don't have permission to use this command."

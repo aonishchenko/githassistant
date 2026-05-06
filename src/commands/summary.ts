@@ -1,7 +1,7 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
 import type { Config, AIProvider, CommandPlugin } from '../types.js';
-import { fetchCommits } from '../github/commits.js';
+import { fetchCommits, fetchCommitFiles } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
@@ -72,11 +72,27 @@ export function createSummaryPlugin(
         return;
       }
 
+      const MAX_COMMITS_FOR_FILES = 30;
       const authorDiffs = new Map<string, string[]>();
+      const authorFiles = new Map<string, Set<string>>();
       for (const commit of commits) {
         const existing = authorDiffs.get(commit.authorLogin) ?? [];
         existing.push(`${commit.shortSha}: ${commit.message}`);
         authorDiffs.set(commit.authorLogin, existing);
+        if (commits.length <= MAX_COMMITS_FOR_FILES) {
+          if (!authorFiles.has(commit.authorLogin)) authorFiles.set(commit.authorLogin, new Set());
+        }
+      }
+
+      if (commits.length <= MAX_COMMITS_FOR_FILES) {
+        for (const commit of commits) {
+          try {
+            const files = await fetchCommitFiles(octokit, config, commit.sha);
+            files.forEach(f => authorFiles.get(commit.authorLogin)?.add(f));
+          } catch (err) {
+            log.error({ err, sha: commit.sha }, 'failed to fetch commit files');
+          }
+        }
       }
 
       const authorSummaries: AuthorSummary[] = [];
@@ -91,7 +107,8 @@ export function createSummaryPlugin(
             .map(c => `- ${c.message} (${c.shortSha})`)
             .join('\n') + '\n_(AI summary unavailable)_';
         }
-        authorSummaries.push({ authorLogin, summary });
+        const files = Array.from(authorFiles.get(authorLogin) ?? []).sort();
+        authorSummaries.push({ authorLogin, summary, files });
       }
 
       await ctx.replyText(formatSummaryMessage(period.label, authorSummaries), { parseMode: 'Markdown' });

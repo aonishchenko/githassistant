@@ -19,17 +19,18 @@ export function buildSummaryFilename(transcriptPath: string): string {
 
 export function extractDateFromFilename(filePath: string): Date | null {
   const name = path.basename(filePath);
-  const match = name.match(/(\d{4}-\d{2}-\d{2})/);
+  const match = name.match(/(\d{4}[-_]\d{2}[-_]\d{2})/);
   if (!match) return null;
-  const d = new Date(`${match[1]}T00:00:00Z`);
+  const normalized = match[1].replace(/_/g, '-');
+  const d = new Date(`${normalized}T00:00:00Z`);
   return isNaN(d.getTime()) ? null : d;
 }
 
 export function isTranscriptFile(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase().slice(1);
-  if (!['md', 'txt'].includes(ext)) return false;
+  if (ext !== '' && !['md', 'txt'].includes(ext)) return false;
   const base = path.basename(filePath, path.extname(filePath)).toLowerCase();
-  return !base.endsWith('-summary') && base !== 'summary';
+  return !base.includes('summary');
 }
 
 async function getTranscriptDate(
@@ -40,6 +41,27 @@ async function getTranscriptDate(
   const fromName = extractDateFromFilename(filePath);
   if (fromName) return fromName;
   return getFileCreationDate(octokit, config, filePath);
+}
+
+const TG_MAX_CHARS = 4000;
+
+async function sendLong(text: string, replyText: (t: string) => Promise<void>): Promise<void> {
+  if (text.length <= TG_MAX_CHARS) {
+    await replyText(text);
+    return;
+  }
+  let remaining = text;
+  while (remaining.length > 0) {
+    if (remaining.length <= TG_MAX_CHARS) {
+      await replyText(remaining);
+      break;
+    }
+    const slice = remaining.slice(0, TG_MAX_CHARS);
+    const cut = Math.max(slice.lastIndexOf('\n'), slice.lastIndexOf(' '));
+    const end = cut > TG_MAX_CHARS / 2 ? cut : TG_MAX_CHARS;
+    await replyText(remaining.slice(0, end));
+    remaining = remaining.slice(end).trimStart();
+  }
 }
 
 async function processFile(
@@ -61,7 +83,7 @@ async function processFile(
   const existing = await getFile(octokit, config, summaryPath);
   if (existing) {
     log.info({ summaryPath }, 'summary already exists, skipping AI generation');
-    await replyText(`Summary already exists: \`${summaryPath}\`. No changes made.`);
+    await sendLong(`${path.basename(summaryPath)}\n\n${existing.content}`, replyText);
     return;
   }
 
@@ -76,7 +98,7 @@ async function processFile(
 
   const commitMsg = `summary(@${username}): ${summaryPath}`;
   await writeFile(octokit, config, summaryPath, summary, commitMsg);
-  await replyText(`*${path.basename(summaryPath)}*\n\n${summary}`);
+  await sendLong(`${path.basename(summaryPath)}\n\n${summary}`, replyText);
 }
 
 export function createMeetingSummaryPlugin(

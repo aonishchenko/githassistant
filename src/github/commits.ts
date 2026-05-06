@@ -32,6 +32,19 @@ export async function fetchCommits(
   }));
 }
 
+export async function fetchCommitFiles(
+  octokit: Octokit,
+  config: Config,
+  sha: string,
+): Promise<string[]> {
+  const { data } = await octokit.repos.getCommit({
+    owner: config.github.owner,
+    repo: config.github.repo,
+    ref: sha,
+  });
+  return (data.files ?? []).map(f => f.filename);
+}
+
 export async function fetchCommitDiff(
   octokit: Octokit,
   config: Config,

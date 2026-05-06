@@ -123,7 +123,7 @@ export class CloudflareAdapter implements MessagingAdapter {
     const userId = message.from?.id?.toString() ?? '';
     const username = message.from?.username ?? message.from?.first_name ?? 'unknown';
 
-    console.log(JSON.stringify({ command, username, text: commandText }));
+    console.info(JSON.stringify({ msg: 'command', command, username, text: commandText }));
 
     const pending = await getPendingState(this.kv, userId);
     let pendingText: string | undefined = pending?.text;

@@ -58,7 +58,7 @@ export function createDailySummaryJob(
             .map(c => `- ${c.message} (${c.shortSha})`)
             .join('\n') + '\n_(AI summary unavailable)_';
         }
-        authorSummaries.push({ authorLogin, summary });
+        authorSummaries.push({ authorLogin, summary, files: [] });
       }
 
       await adapter.sendMessage(formatSummaryMessage(dateStr, authorSummaries), { parseMode: 'Markdown' });
