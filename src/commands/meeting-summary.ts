@@ -60,6 +60,7 @@ async function processFile(
   const summaryPath = buildSummaryFilename(transcriptPath);
   const existing = await getFile(octokit, config, summaryPath);
   if (existing) {
+    log.info({ summaryPath }, 'summary already exists, skipping AI generation');
     await replyText(`Summary already exists: \`${summaryPath}\`. No changes made.`);
     return;
   }
@@ -100,7 +101,7 @@ export function createMeetingSummaryPlugin(
         }
         await ctx.showOptions(
           'Choose a transcript to summarise:',
-          transcripts.slice(0, 20).map(f => ({ label: f, callbackData: `meeting_file:${f}` })),
+          transcripts.slice(0, 20).map(f => ({ label: f, callbackData: `mf:${f}` })),
         );
         return;
       }
@@ -142,7 +143,7 @@ export function createMeetingSummaryPlugin(
 
   const callbackHandler: CallbackHandler = async (ctx) => {
     await ctx.answerCallback();
-    const filePath = ctx.callbackData.replace(/^meeting_file:/, '');
+    const filePath = ctx.callbackData.replace(/^mf:/, '');
     await processFile(octokit, config, aiProvider, filePath, ctx.username, ctx.replyText.bind(ctx), log);
   };
 

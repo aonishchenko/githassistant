@@ -19,7 +19,7 @@ export function registerCommands(
 
   const { plugin: notePlugin, callbackHandler: noteCallback } = createNotePlugin(octokit, config);
   adapter.onCommand(notePlugin.command, withAuth(notePlugin, adapter));
-  adapter.onCallback('note_file', noteCallback);
+  adapter.onCallback('nf', noteCallback);
 
   const { plugin: summaryPlugin } = createSummaryPlugin(octokit, config, aiProvider, log);
   adapter.onCommand(summaryPlugin.command, summaryPlugin.handler);
@@ -30,7 +30,7 @@ export function registerCommands(
   const { plugin: meetingPlugin, callbackHandler: meetingCallback } =
     createMeetingSummaryPlugin(octokit, config, aiProvider, log);
   adapter.onCommand(meetingPlugin.command, withAuth(meetingPlugin, adapter));
-  adapter.onCallback('meeting_file', meetingCallback);
+  adapter.onCallback('mf', meetingCallback);
 }
 
 function withAuth(

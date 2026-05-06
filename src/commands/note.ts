@@ -45,7 +45,7 @@ export function createNotePlugin(
           if (matches.length > 1) {
             ctx.setPendingNote(args.noteText);
             await ctx.showOptions('Multiple files found. Choose one:', matches.slice(0, 50).map(f => ({
-              label: f, callbackData: `note_file:${f}`,
+              label: f, callbackData: `nf:${f}`,
             })));
             return;
           }
@@ -56,7 +56,7 @@ export function createNotePlugin(
           }
           ctx.setPendingNote(fullText);
           await ctx.showOptions('Choose a file to append your note to:', allFiles.sort().slice(0, 50).map(f => ({
-            label: f, callbackData: `note_file:${f}`,
+            label: f, callbackData: `nf:${f}`,
           })));
           return;
         }
@@ -77,7 +77,7 @@ export function createNotePlugin(
         await ctx.replyText(`No files found in allowed paths: ${config.note.allowedPaths.join(', ')}.`);
         return;
       }
-      const options = allFiles.sort().slice(0, 50).map(f => ({ label: f, callbackData: `note_file:${f}` }));
+      const options = allFiles.sort().slice(0, 50).map(f => ({ label: f, callbackData: `nf:${f}` }));
       ctx.setPendingNote(args.noteText);
       await ctx.showOptions('Choose a file to append your note to:', options);
     },
@@ -85,7 +85,7 @@ export function createNotePlugin(
 
   const callbackHandler: CallbackHandler = async (ctx) => {
     await ctx.answerCallback();
-    const filePath = ctx.callbackData.replace(/^note_file:/, '');
+    const filePath = ctx.callbackData.replace(/^nf:/, '');
     const noteText = ctx.getPendingNote();
     ctx.clearPendingNote();
 
