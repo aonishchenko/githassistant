@@ -85,7 +85,7 @@ export function createMeetingSummaryPlugin(
   log: Logger,
 ): { plugin: CommandPlugin; callbackHandler: CallbackHandler } {
   const plugin: CommandPlugin = {
-    command: 'meeting-summary',
+    command: 'meetingsummary',
     description: 'Summarise a meeting transcript from the meetings folder',
     requiresAuth: true,
     handler: async (ctx) => {
