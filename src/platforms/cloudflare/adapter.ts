@@ -112,10 +112,10 @@ export class CloudflareAdapter implements MessagingAdapter {
     const text = message.text ?? '';
     if (!text.startsWith('/')) return;
 
-    const commandMatch = text.match(/^\/(\w+)(@\w+)?/);
+    const commandMatch = text.match(/^\/([a-zA-Z0-9_-]+)(@\w+)?/);
     if (!commandMatch) return;
     const command = commandMatch[1];
-    const commandText = text.replace(/^\/\w+(@\w+)?\s*/, '');
+    const commandText = text.replace(/^\/[a-zA-Z0-9_-]+(@\w+)?\s*/, '');
 
     const handler = this.commandHandlers.get(command);
     if (!handler) return;
