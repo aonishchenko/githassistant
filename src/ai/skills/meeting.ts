@@ -1,6 +1,6 @@
 import type { AIProvider } from '../../types.js';
 
-const MEETING_SUMMARY_MAX_TOKENS = 8192;
+const MEETING_SUMMARY_MAX_TOKENS = 2048;
 
 const MEETING_SKILL = `# Meeting Transcription Summary Skill
 
@@ -105,9 +105,14 @@ Always return all three sections in this exact order:
 Keep the tone professional and neutral. Do not editorialize or add opinions not present in the transcript.
 If the transcript is incomplete or unclear in places, note it briefly in the relevant section.`;
 
+const MAX_TRANSCRIPT_CHARS = 24_000;
+
 export async function summariseMeeting(
   provider: AIProvider,
   transcript: string,
 ): Promise<string> {
-  return provider.summarise(MEETING_SKILL, transcript, MEETING_SUMMARY_MAX_TOKENS);
+  const input = transcript.length > MAX_TRANSCRIPT_CHARS
+    ? transcript.slice(0, MAX_TRANSCRIPT_CHARS) + '\n\n[transcript truncated]'
+    : transcript;
+  return provider.summarise(MEETING_SKILL, input, MEETING_SUMMARY_MAX_TOKENS);
 }
