@@ -18,6 +18,16 @@ function parseShortcuts(raw: string): Record<string, string> {
   return result;
 }
 
+function buildExcludedPaths(rawExcluded: string, rawAllowed: string, meetingFolder: string): string[] {
+  const explicit = rawExcluded.split(',').map(s => s.trim()).filter(Boolean);
+  const allowedPaths = rawAllowed.split(',').map(s => s.trim()).filter(Boolean);
+  const meetingIsSubfolder = allowedPaths.some(p =>
+    meetingFolder === p || meetingFolder.startsWith(p + '/'),
+  );
+  const auto = meetingIsSubfolder ? [meetingFolder] : [];
+  return [...new Set([...explicit, ...auto])];
+}
+
 export function loadConfig(): Config {
   const missing: string[] = [];
 
@@ -47,6 +57,11 @@ export function loadConfig(): Config {
     note: {
       allowedPaths: (process.env.NOTE_ALLOWED_PATHS ?? 'docs')
         .split(',').map(s => s.trim()).filter(Boolean),
+      excludedPaths: buildExcludedPaths(
+        process.env.NOTE_EXCLUDED_PATHS ?? '',
+        process.env.NOTE_ALLOWED_PATHS ?? 'docs',
+        process.env.MEETING_NOTES_FOLDER ?? 'meetings',
+      ),
       shortcuts: parseShortcuts(process.env.NOTE_SHORTCUTS ?? ''),
       allowedExtensions: (process.env.NOTE_ALLOWED_EXTENSIONS ?? 'md,txt')
         .split(',').map(s => s.trim()).filter(Boolean),

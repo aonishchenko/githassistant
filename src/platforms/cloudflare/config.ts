@@ -16,6 +16,7 @@ export interface CloudflareEnv {
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   NOTE_ALLOWED_PATHS?: string;
+  NOTE_EXCLUDED_PATHS?: string;
   NOTE_SHORTCUTS?: string;
   NOTE_ALLOWED_EXTENSIONS?: string;
   MEETING_NOTES_FOLDER?: string;
@@ -26,6 +27,16 @@ export interface CloudflareEnv {
   SUMMARY_LANGUAGE?: string;
   LOG_LEVEL?: string;
   RATE_LIMIT_PER_MIN?: string;
+}
+
+function buildExcludedPaths(rawExcluded: string, rawAllowed: string, meetingFolder: string): string[] {
+  const explicit = rawExcluded.split(',').map(s => s.trim()).filter(Boolean);
+  const allowedPaths = rawAllowed.split(',').map(s => s.trim()).filter(Boolean);
+  const meetingIsSubfolder = allowedPaths.some(p =>
+    meetingFolder === p || meetingFolder.startsWith(p + '/'),
+  );
+  const auto = meetingIsSubfolder ? [meetingFolder] : [];
+  return [...new Set([...explicit, ...auto])];
 }
 
 function parseShortcuts(raw: string): Record<string, string> {
@@ -73,6 +84,11 @@ export function loadCFConfig(env: CloudflareEnv): Config {
     note: {
       allowedPaths: (env.NOTE_ALLOWED_PATHS ?? 'docs')
         .split(',').map(s => s.trim()).filter(Boolean),
+      excludedPaths: buildExcludedPaths(
+        env.NOTE_EXCLUDED_PATHS ?? '',
+        env.NOTE_ALLOWED_PATHS ?? 'docs',
+        env.MEETING_NOTES_FOLDER ?? 'meetings',
+      ),
       shortcuts: parseShortcuts(env.NOTE_SHORTCUTS ?? ''),
       allowedExtensions: (env.NOTE_ALLOWED_EXTENSIONS ?? 'md,txt')
         .split(',').map(s => s.trim()).filter(Boolean),

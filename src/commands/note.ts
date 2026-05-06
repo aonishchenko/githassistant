@@ -27,7 +27,10 @@ export function createNotePlugin(
         const fullText = args.noteText ? `${candidate} ${args.noteText}` : candidate;
 
         if (!candidate.includes('/')) {
-          const allFiles = await listFiles(octokit, config, config.note.allowedPaths);
+          const allFiles = filterExcluded(
+            await listFiles(octokit, config, config.note.allowedPaths),
+            config.note.excludedPaths,
+          );
           const matches = allFiles.filter(f =>
             path.basename(f) === candidate ||
             path.basename(f, path.extname(f)) === candidate,
@@ -41,7 +44,7 @@ export function createNotePlugin(
           }
           if (matches.length > 1) {
             ctx.setPendingNote(args.noteText);
-            await ctx.showOptions('Multiple files found. Choose one:', matches.slice(0, 20).map(f => ({
+            await ctx.showOptions('Multiple files found. Choose one:', matches.slice(0, 50).map(f => ({
               label: f, callbackData: `note_file:${f}`,
             })));
             return;
@@ -52,7 +55,7 @@ export function createNotePlugin(
             return;
           }
           ctx.setPendingNote(fullText);
-          await ctx.showOptions('Choose a file to append your note to:', allFiles.sort().slice(0, 20).map(f => ({
+          await ctx.showOptions('Choose a file to append your note to:', allFiles.sort().slice(0, 50).map(f => ({
             label: f, callbackData: `note_file:${f}`,
           })));
           return;
@@ -66,12 +69,15 @@ export function createNotePlugin(
       }
 
       // Form C — list all files
-      const allFiles = await listFiles(octokit, config, config.note.allowedPaths);
+      const allFiles = filterExcluded(
+        await listFiles(octokit, config, config.note.allowedPaths),
+        config.note.excludedPaths,
+      );
       if (allFiles.length === 0) {
         await ctx.replyText(`No files found in allowed paths: ${config.note.allowedPaths.join(', ')}.`);
         return;
       }
-      const options = allFiles.sort().slice(0, 20).map(f => ({ label: f, callbackData: `note_file:${f}` }));
+      const options = allFiles.sort().slice(0, 50).map(f => ({ label: f, callbackData: `note_file:${f}` }));
       ctx.setPendingNote(args.noteText);
       await ctx.showOptions('Choose a file to append your note to:', options);
     },
@@ -96,6 +102,13 @@ export function createNotePlugin(
   };
 
   return { plugin, callbackHandler };
+}
+
+function filterExcluded(files: string[], excludedPaths: string[] = []): string[] {
+  if (excludedPaths.length === 0) return files;
+  return files.filter(f =>
+    !excludedPaths.some(ex => f === ex || f.startsWith(ex + '/')),
+  );
 }
 
 async function appendNoteToFile(

@@ -98,6 +98,7 @@ All variables with defaults are documented in `.env.example`.
 | `OPENAI_MODEL` | `gpt-4o` | OpenAI model name (used when `AI_PROVIDER=openai`) |
 | `MEETING_NOTES_FOLDER` | `meetings` | GitHub folder path containing meeting transcripts |
 | `NOTE_ALLOWED_PATHS` | `docs` | Comma-separated folders `/note` can write to |
+| `NOTE_EXCLUDED_PATHS` | _(none)_ | Comma-separated folders excluded from `/note` picker. `MEETING_NOTES_FOLDER` is auto-excluded if it is a subfolder of `NOTE_ALLOWED_PATHS` |
 | `NOTE_SHORTCUTS` | _(none)_ | Comma-separated `key=path` shortcuts, e.g. `i=docs/ideas.md` |
 | `NIGHTLY_CRON` | `0 2 * * *` | Cron expression for nightly jobs |
 | `TIMEZONE` | `UTC` | Timezone for nightly job scheduling |

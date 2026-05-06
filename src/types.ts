@@ -12,6 +12,7 @@ export interface Config {
   };
   note: {
     allowedPaths: string[];
+    excludedPaths: string[];
     shortcuts: Record<string, string>;
     allowedExtensions: string[];
   };
