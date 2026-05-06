@@ -1,6 +1,6 @@
 import type { AIProvider } from '../../types.js';
 
-const MEETING_SUMMARY_MAX_TOKENS = 2048;
+const MEETING_SUMMARY_MAX_TOKENS = 8192;
 
 const MEETING_SKILL = `# Meeting Transcription Summary Skill
 

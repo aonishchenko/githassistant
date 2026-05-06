@@ -35,24 +35,32 @@ function buildDeps(env: CloudflareEnv) {
 }
 
 export default {
-  async fetch(request: Request, env: CloudflareEnv, ctx: ExecutionContext): Promise<Response> {
+  async fetch(request: Request, env: CloudflareEnv): Promise<Response> {
     const url = new URL(request.url);
-
     if (request.method !== 'POST' || url.pathname !== '/webhook') {
       return new Response('Not found', { status: 404 });
     }
-
     let update: TelegramUpdate;
     try {
       update = await request.json() as TelegramUpdate;
     } catch {
       return new Response('Bad request', { status: 400 });
     }
-
-    const { adapter } = buildDeps(env);
-    ctx.waitUntil(adapter.handleUpdate(update));
-
+    await env.BOT_QUEUE.send(update);
     return new Response('OK', { status: 200 });
+  },
+
+  async queue(batch: MessageBatch<TelegramUpdate>, env: CloudflareEnv): Promise<void> {
+    const { adapter } = buildDeps(env);
+    for (const message of batch.messages) {
+      try {
+        await adapter.handleUpdate(message.body);
+        message.ack();
+      } catch (err) {
+        console.error('Failed to process update:', err);
+        message.retry();
+      }
+    }
   },
 
   async scheduled(event: ScheduledEvent, env: CloudflareEnv): Promise<void> {

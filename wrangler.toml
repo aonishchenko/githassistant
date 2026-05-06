@@ -11,6 +11,16 @@ id = "1f03799510ba49a4a0183ccb661c13a4"
 [triggers]
 crons = ["0 2 * * *", "0 6 * * *"]
 
+[[queues.producers]]
+queue = "githassistant-queue"
+binding = "BOT_QUEUE"
+
+[[queues.consumers]]
+queue = "githassistant-queue"
+max_batch_size = 1
+max_batch_timeout = 0
+max_retries = 2
+
 [observability.logs]
 enabled = true
 invocation_logs = true
