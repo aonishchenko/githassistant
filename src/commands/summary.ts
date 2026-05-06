@@ -1,7 +1,7 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
 import type { Config, AIProvider, CommandPlugin } from '../types.js';
-import { fetchCommits, fetchPeriodDiff } from '../github/commits.js';
+import { fetchCommits } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
@@ -72,27 +72,11 @@ export function createSummaryPlugin(
         return;
       }
 
-      // One compare call for the entire period instead of one call per commit
-      const oldest = commits[commits.length - 1];
-      const newest = commits[0];
-      const baseSha = oldest.parentShas[0] ?? oldest.sha;
-      let periodDiff = '';
-      try {
-        periodDiff = await fetchPeriodDiff(octokit, config, baseSha, newest.sha);
-      } catch (err) {
-        log.error({ err }, 'failed to fetch period diff');
-      }
-
       const authorDiffs = new Map<string, string[]>();
       for (const commit of commits) {
         const existing = authorDiffs.get(commit.authorLogin) ?? [];
-        existing.push(`${commit.shortSha} ${commit.message}`);
+        existing.push(`${commit.shortSha}: ${commit.message}`);
         authorDiffs.set(commit.authorLogin, existing);
-      }
-      // Append the combined diff once per author for context
-      for (const [author, msgs] of authorDiffs) {
-        if (periodDiff) msgs.push(periodDiff);
-        authorDiffs.set(author, msgs);
       }
 
       const authorSummaries: AuthorSummary[] = [];
