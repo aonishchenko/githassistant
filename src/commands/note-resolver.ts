@@ -29,7 +29,7 @@ export function validateNotePath(
 ): string | null {
   if (!allowedExtensions.includes('*')) {
     const ext = path.extname(filePath).slice(1).toLowerCase();
-    if (!allowedExtensions.includes(ext)) {
+    if (ext !== '' && !allowedExtensions.includes(ext)) {
       return `File extension ".${ext}" is not allowed. Allowed extensions: ${allowedExtensions.map(e => `.${e}`).join(', ')}.`;
     }
   }
