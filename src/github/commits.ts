@@ -12,7 +12,7 @@ export async function fetchCommits(
     repo: config.github.repo,
     sha: config.github.defaultBranch,
     since: since.toISOString(),
-    per_page: 40,
+    per_page: 100,
   };
   if (until) params.until = until.toISOString();
 
@@ -41,6 +41,21 @@ export async function fetchCommitDiff(
     owner: config.github.owner,
     repo: config.github.repo,
     ref: sha,
+    headers: { accept: 'application/vnd.github.diff' },
+  });
+  return data as unknown as string;
+}
+
+export async function fetchPeriodDiff(
+  octokit: Octokit,
+  config: Config,
+  baseSha: string,
+  headSha: string,
+): Promise<string> {
+  const { data } = await octokit.request('GET /repos/{owner}/{repo}/compare/{basehead}', {
+    owner: config.github.owner,
+    repo: config.github.repo,
+    basehead: `${baseSha}...${headSha}`,
     headers: { accept: 'application/vnd.github.diff' },
   });
   return data as unknown as string;
