@@ -1,6 +1,6 @@
 import type { AIProvider } from '../types.js';
 
-const MAX_DIFF_CHARS = 80_000;
+const MAX_DIFF_CHARS = 12_000;
 
 export const SUMMARY_PROMPT = (language: string, authorLogin: string): string =>
   `Summarise the following git changes made by @${authorLogin} in plain language, as if explaining to a colleague. Refer to the author by their username @${authorLogin}. Focus on what changed and why it matters. Do not list file names or statistics. Keep it to 3–5 sentences. Respond in ${language}.`;

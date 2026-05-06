@@ -35,7 +35,7 @@ function buildDeps(env: CloudflareEnv) {
 }
 
 export default {
-  async fetch(request: Request, env: CloudflareEnv): Promise<Response> {
+  async fetch(request: Request, env: CloudflareEnv, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     if (request.method !== 'POST' || url.pathname !== '/webhook') {
@@ -50,7 +50,7 @@ export default {
     }
 
     const { adapter } = buildDeps(env);
-    await adapter.handleUpdate(update);
+    ctx.waitUntil(adapter.handleUpdate(update));
 
     return new Response('OK', { status: 200 });
   },
