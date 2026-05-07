@@ -4,6 +4,7 @@ import type { Config } from '../../types.js';
 export interface CloudflareEnv {
   GITHASSISTANT_KV: KVNamespace;
   BOT_QUEUE: Queue;
+  GITHASSISTANT_DB?: D1Database;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_GROUP_ID: string;
   TELEGRAM_ALLOWED_USERS?: string;

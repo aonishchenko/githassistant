@@ -33,7 +33,7 @@ export function registerCommands(
   adapter.onCallback('mf', meetingCallback);
 }
 
-function withAuth(
+export function withAuth(
   plugin: CommandPlugin,
   adapter: MessagingAdapter,
 ): (ctx: AdapterContext) => Promise<void> {

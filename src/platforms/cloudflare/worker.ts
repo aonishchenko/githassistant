@@ -4,9 +4,10 @@ import type { Logger } from 'pino';
 import { loadCFConfig, type CloudflareEnv } from './config.js';
 import { CloudflareAdapter, type TelegramUpdate } from './adapter.js';
 import { createAIProvider } from '../../ai/provider.js';
-import { registerCommands } from '../../commands/registry.js';
+import { registerCommands, withAuth } from '../../commands/registry.js';
 import { createSquashJob } from '../../jobs/squash.js';
 import { createDailySummaryJob } from '../../jobs/dailySummary.js';
+import { createD1UsageTracker } from './d1-tracker.js';
 
 const NIGHTLY_CRON = '30 23 * * *';
 
@@ -23,13 +24,19 @@ function makeLogger(): Logger {
   } as unknown as Logger;
 }
 
-function buildDeps(env: CloudflareEnv) {
+async function buildDeps(env: CloudflareEnv) {
   const config = loadCFConfig(env);
   const octokit = new Octokit({ auth: config.github.token });
-  const aiProvider = createAIProvider(config);
+  const tracker = env.GITHASSISTANT_DB ? createD1UsageTracker(env.GITHASSISTANT_DB) : undefined;
+  const aiProvider = createAIProvider(config, tracker);
   const adapter = new CloudflareAdapter(config, env.GITHASSISTANT_KV);
   const log = makeLogger();
   registerCommands(adapter, octokit, config, aiProvider, log);
+  if (env.GITHASSISTANT_DB) {
+    const { createUsagePlugin } = await import('../../commands/usage.js');
+    const usagePlugin = createUsagePlugin(env.GITHASSISTANT_DB);
+    adapter.onCommand(usagePlugin.command, withAuth(usagePlugin, adapter));
+  }
   return { config, octokit, aiProvider, adapter, log };
 }
 
@@ -50,7 +57,7 @@ export default {
   },
 
   async queue(batch: MessageBatch<TelegramUpdate>, env: CloudflareEnv): Promise<void> {
-    const { adapter } = buildDeps(env);
+    const { adapter } = await buildDeps(env);
     for (const message of batch.messages) {
       try {
         await adapter.handleUpdate(message.body);
@@ -63,7 +70,7 @@ export default {
   },
 
   async scheduled(event: ScheduledEvent, env: CloudflareEnv): Promise<void> {
-    const { config, octokit, aiProvider, adapter, log } = buildDeps(env);
+    const { config, octokit, aiProvider, adapter, log } = await buildDeps(env);
 
     if (event.cron === NIGHTLY_CRON) {
       await createDailySummaryJob(octokit, config, adapter, aiProvider, log).handler();

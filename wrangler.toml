@@ -8,6 +8,11 @@ binding = "GITHASSISTANT_KV"
 id = "1f03799510ba49a4a0183ccb661c13a4"
 # id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
+[[d1_databases]]
+binding = "GITHASSISTANT_DB"
+database_name = "githassistant-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+
 [triggers]
 crons = ["30 23 * * *"]
 

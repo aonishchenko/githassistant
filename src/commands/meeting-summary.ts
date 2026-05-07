@@ -1,7 +1,7 @@
 import path from 'path';
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
-import type { Config, AIProvider, CommandPlugin, CallbackHandler } from '../types.js';
+import type { Config, AIProvider, CommandPlugin, CallbackHandler, SendOptions, UsageContext } from '../types.js';
 import { getFile, writeFile, listFiles, getFileCreationDate } from '../github/files.js';
 import { summariseMeeting } from '../ai/skills/meeting.js';
 import { parsePeriod } from './summary.js';
@@ -64,41 +64,54 @@ async function sendLong(text: string, replyText: (t: string) => Promise<void>): 
   }
 }
 
+function githubFileUrl(config: Config, filePath: string): string {
+  return `https://github.com/${config.github.owner}/${config.github.repo}/blob/${config.github.defaultBranch}/${filePath}`;
+}
+
 async function processFile(
   octokit: Octokit,
   config: Config,
   aiProvider: AIProvider,
   transcriptPath: string,
   username: string,
-  replyText: (text: string) => Promise<void>,
+  replyText: (text: string, opts?: SendOptions) => Promise<void>,
   log: Logger,
+  usageCtx?: UsageContext,
 ): Promise<void> {
   const transcript = await getFile(octokit, config, transcriptPath);
   if (!transcript) {
-    await replyText(`File not found: \`${transcriptPath}\`.`);
+    await replyText(`File not found: ${transcriptPath}.`);
     return;
   }
 
   const summaryPath = buildSummaryFilename(transcriptPath);
   const existing = await getFile(octokit, config, summaryPath);
-  if (existing) {
+  const content = existing?.content ?? null;
+
+  if (!content) {
+    let summary: string;
+    try {
+      summary = await summariseMeeting(aiProvider, transcript.content, usageCtx);
+    } catch (err) {
+      log.error({ err, transcriptPath }, 'meeting summarisation failed');
+      await replyText(`Failed to generate summary for ${transcriptPath}. Please try again.`);
+      return;
+    }
+    const commitMsg = `summary(@${username}): ${summaryPath}`;
+    await writeFile(octokit, config, summaryPath, summary, commitMsg);
+    await replyText(
+      `<a href="${githubFileUrl(config, summaryPath)}">${path.basename(summaryPath)}</a>`,
+      { parseMode: 'HTML' as const },
+    );
+    await sendLong(summary, replyText);
+  } else {
     log.info({ summaryPath }, 'summary already exists, skipping AI generation');
-    await sendLong(`${path.basename(summaryPath)}\n\n${existing.content}`, replyText);
-    return;
+    await replyText(
+      `<a href="${githubFileUrl(config, summaryPath)}">${path.basename(summaryPath)}</a>`,
+      { parseMode: 'HTML' as const },
+    );
+    await sendLong(content, replyText);
   }
-
-  let summary: string;
-  try {
-    summary = await summariseMeeting(aiProvider, transcript.content);
-  } catch (err) {
-    log.error({ err, transcriptPath }, 'meeting summarisation failed');
-    await replyText(`Failed to generate summary for \`${transcriptPath}\`. Please try again.`);
-    return;
-  }
-
-  const commitMsg = `summary(@${username}): ${summaryPath}`;
-  await writeFile(octokit, config, summaryPath, summary, commitMsg);
-  await sendLong(`${path.basename(summaryPath)}\n\n${summary}`, replyText);
 }
 
 export function createMeetingSummaryPlugin(
@@ -150,8 +163,9 @@ export function createMeetingSummaryPlugin(
           await ctx.replyText(`No transcript files found in the requested period.`);
           return;
         }
+        const usageCtx: UsageContext = { trigger: 'meetingsummary', username: ctx.username };
         for (const f of inPeriod) {
-          await processFile(octokit, config, aiProvider, f, ctx.username, ctx.replyText.bind(ctx), log);
+          await processFile(octokit, config, aiProvider, f, ctx.username, ctx.replyText.bind(ctx), log, usageCtx);
         }
         return;
       }
@@ -159,14 +173,14 @@ export function createMeetingSummaryPlugin(
       const filePath = arg.includes('/')
         ? arg
         : `${config.meeting.notesFolder}/${arg}`;
-      await processFile(octokit, config, aiProvider, filePath, ctx.username, ctx.replyText.bind(ctx), log);
+      await processFile(octokit, config, aiProvider, filePath, ctx.username, ctx.replyText.bind(ctx), log, { trigger: 'meetingsummary', username: ctx.username });
     },
   };
 
   const callbackHandler: CallbackHandler = async (ctx) => {
     await ctx.answerCallback();
     const filePath = ctx.callbackData.replace(/^mf:/, '');
-    await processFile(octokit, config, aiProvider, filePath, ctx.username, ctx.replyText.bind(ctx), log);
+    await processFile(octokit, config, aiProvider, filePath, ctx.username, ctx.replyText.bind(ctx), log, { trigger: 'meetingsummary', username: ctx.username });
   };
 
   return { plugin, callbackHandler };

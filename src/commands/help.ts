@@ -17,6 +17,7 @@ export function createHelpPlugin(config: Config): CommandPlugin {
         `/summary [period]             — Summarise recent changes (default: last 24h)\n` +
         `/squash [period]              — Squash commits per author (default: last 24h)\n` +
         `/meetingsummary [file|period] — Summarise a meeting transcript\n` +
+        `/usage [period]               — Show AI token usage and cost stats\n` +
         `/help                         — Show this message` +
         shortcutLine,
       );

@@ -1,4 +1,4 @@
-import type { AIProvider } from '../../types.js';
+import type { AIProvider, UsageContext } from '../../types.js';
 
 const MEETING_SUMMARY_MAX_TOKENS = 8192;
 
@@ -108,6 +108,7 @@ If the transcript is incomplete or unclear in places, note it briefly in the rel
 export async function summariseMeeting(
   provider: AIProvider,
   transcript: string,
+  ctx?: UsageContext,
 ): Promise<string> {
-  return provider.summarise(MEETING_SKILL, transcript, MEETING_SUMMARY_MAX_TOKENS);
+  return provider.summarise(MEETING_SKILL, transcript, MEETING_SUMMARY_MAX_TOKENS, ctx);
 }

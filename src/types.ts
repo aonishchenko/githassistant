@@ -94,8 +94,22 @@ export interface JobPlugin {
   handler: () => Promise<void>;
 }
 
+export interface UsageContext {
+  trigger: string;  // e.g. 'summary', 'meetingsummary', 'cron:daily'
+  username: string; // e.g. '@alice' or 'cron'
+}
+
+export type UsageTracker = (record: {
+  trigger: string;
+  username: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  costUsd: number;
+}) => Promise<void>;
+
 export interface AIProvider {
-  summarise(prompt: string, content: string, maxTokens?: number): Promise<string>;
+  summarise(prompt: string, content: string, maxTokens?: number, ctx?: UsageContext): Promise<string>;
 }
 
 export interface GitHubCommit {

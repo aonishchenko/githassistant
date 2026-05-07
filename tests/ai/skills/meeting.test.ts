@@ -12,6 +12,7 @@ describe('summariseMeeting', () => {
       expect.stringContaining('Executive Summary'),
       'Transcript text here',
       8192,
+      undefined,
     );
     expect(result).toBe('Generated summary');
   });

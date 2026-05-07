@@ -33,6 +33,8 @@ describe('summariseAuthorDiffs', () => {
     expect(mockProvider.summarise).toHaveBeenCalledWith(
       expect.stringContaining('alice'),
       'small diff',
+      undefined,
+      undefined,
     );
   });
 

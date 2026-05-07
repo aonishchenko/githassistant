@@ -1,4 +1,4 @@
-import type { AIProvider } from '../types.js';
+import type { AIProvider, UsageContext } from '../types.js';
 
 const MAX_DIFF_CHARS = 12_000;
 
@@ -20,21 +20,22 @@ export async function summariseAuthorDiffs(
   diffs: string[],
   language: string,
   authorLogin: string,
+  ctx?: UsageContext,
 ): Promise<string> {
   const combined = diffs.join('\n\n---\n\n');
   const prompt = SUMMARY_PROMPT(language, authorLogin);
 
   if (combined.length <= MAX_DIFF_CHARS) {
-    return provider.summarise(prompt, combined);
+    return provider.summarise(prompt, combined, undefined, ctx);
   }
 
   const chunks = chunkText(combined, MAX_DIFF_CHARS);
   const chunkSummaries = await Promise.all(
-    chunks.map(chunk => provider.summarise(prompt, chunk)),
+    chunks.map(chunk => provider.summarise(prompt, chunk, undefined, ctx)),
   );
 
   if (chunkSummaries.length === 1) return chunkSummaries[0];
 
   const consolidationPrompt = `Consolidate the following partial summaries about @${authorLogin} into a single cohesive summary of 3–5 sentences. Respond in ${language}.`;
-  return provider.summarise(consolidationPrompt, chunkSummaries.join('\n\n'));
+  return provider.summarise(consolidationPrompt, chunkSummaries.join('\n\n'), undefined, ctx);
 }

@@ -1,6 +1,6 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
-import type { Config, MessagingAdapter, AIProvider, JobPlugin, GitHubCommit } from '../types.js';
+import type { Config, MessagingAdapter, AIProvider, JobPlugin, GitHubCommit, UsageContext } from '../types.js';
 import { fetchCommits, fetchCommitDiff } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
@@ -49,11 +49,12 @@ export function createDailySummaryJob(
         authorDiffs.set(commit.authorLogin, existing);
       }
 
+      const cronCtx: UsageContext = { trigger: 'cron:daily', username: 'cron' };
       const authorSummaries: AuthorSummary[] = [];
       for (const [authorLogin, diffs] of authorDiffs.entries()) {
         let summary: string;
         try {
-          summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage, authorLogin);
+          summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage, authorLogin, cronCtx);
         } catch (err) {
           log.error({ err, authorLogin }, 'AI summarisation failed');
           summary = commits

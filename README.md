@@ -14,6 +14,7 @@ A Telegram bot that keeps your GitHub project documented, summarised, and tidy �
 | 📊 **Daily digest** | Every morning: a plain-English summary of who did what, posted automatically |
 | 🗂️ **Clean history** | Nightly squash keeps your commit log readable without losing any work |
 | 🎙️ **Meeting summaries** | Drop a transcript, get back exec summary + action items + full topic breakdown |
+| 💰 **AI usage tracking** | Every AI call is logged to D1 — query token counts and cost by period or user |
 
 ---
 
@@ -113,11 +114,12 @@ All variables with defaults are documented in `.env.example`.
 | `/summary [period]` | None | AI-generated summary of recent commits by author |
 | `/squash [period]` | Required | Squash multiple commits into one per author |
 | `/meetingsummary [file\|period]` | Required | Summarise meeting transcript(s) from the meetings folder |
+| `/usage [period]` | Required | Show AI token usage and cost breakdown by trigger and user |
 | `/help` | None | Show command reference |
 
 **Auth** means the sender must be in `TELEGRAM_ALLOWED_USERS` or a group admin.
 
-**Period formats** (applies to `/summary`, `/squash`, and `/meetingsummary`): none (last 24h), `3d`, `1w`, `2025-04-20`
+**Period formats** (applies to `/summary`, `/squash`, `/meetingsummary`, and `/usage`): none (last 24h), `3d`, `1w`, `2025-04-20`
 
 ### /note forms
 
@@ -128,6 +130,16 @@ The bot finds the right file automatically:
 - **Bare name (no extension):** `/note meeting Sprint recap.` — matches `docs/meeting.md` or `docs/drive/meeting` by basename
 - **Shortcut:** `/note i New idea.` — resolves via `NOTE_SHORTCUTS` config
 - **No path:** `/note Sprint recap.` — shows inline file picker; tap a file to append
+
+### /usage forms
+
+```
+/usage          → AI usage for the last 24 hours
+/usage 7d       → last 7 days
+/usage 1w       → last week
+```
+
+Shows total tokens (input + output), cost in USD, and a breakdown by trigger (`/summary`, `/meetingsummary`, `cron:daily`, etc.) and by user. Requires a configured D1 database (see Cloudflare Workers setup below).
 
 ### /meetingsummary forms
 
@@ -143,10 +155,10 @@ Period filtering uses dates embedded in the filename — both hyphen (`2026-04-2
 
 ## Nightly Jobs
 
-Both jobs run automatically at `NIGHTLY_CRON` (default 02:00 UTC):
+Both jobs run automatically at `NIGHTLY_CRON` (default 23:30 UTC). The daily summary runs first (against today's commits), then squash runs on the same day's window:
 
-- **Squash** — merges consecutive same-author commits from the previous calendar day into one commit per run on `GITHUB_DEFAULT_BRANCH`
-- **Daily summary** — posts a per-author AI narrative digest of yesterday's changes to the group
+- **Daily summary** — posts a per-author AI narrative digest of today's commits to the group; runs before squash so it sees real commit messages
+- **Squash** — merges consecutive same-author commits from today into one commit per run on `GITHUB_DEFAULT_BRANCH`; skips any existing `daily(@` squash commits to avoid double-squashing
 
 Set `SQUASH_ENABLED=false` to disable squash while keeping the digest running.
 
@@ -181,7 +193,14 @@ wrangler login
 wrangler kv namespace create GITHASSISTANT_KV
 # Copy the returned `id` value into wrangler.toml → kv_namespaces[0].id
 
-# 4. Set required secrets (you will be prompted to type each value)
+# 4. Create the D1 database for AI usage tracking
+wrangler d1 create githassistant-db
+# Copy the returned `database_id` into wrangler.toml → d1_databases[0].database_id
+
+# 5. Run the database migration
+wrangler d1 execute githassistant-db --file=migrations/0001_ai_usage.sql
+
+# 6. Set required secrets (you will be prompted to type each value)
 wrangler secret put TELEGRAM_BOT_TOKEN
 wrangler secret put TELEGRAM_GROUP_ID
 wrangler secret put GITHUB_TOKEN
@@ -214,14 +233,12 @@ npm run cf:dev   # wrangler dev — runs CF Workers runtime locally on port 8787
 
 ### Nightly job schedule
 
-Both jobs run automatically via CF Cron Triggers:
+Both jobs run automatically via a single CF Cron Trigger at `30 23 * * *` (23:30 UTC):
 
-| Job | Schedule | Description |
-|---|---|---|
-| Squash | `0 2 * * *` (02:00 UTC) | Squash each author's commits from yesterday |
-| Daily summary | `0 6 * * *` (06:00 UTC) | Post AI digest of yesterday's changes |
+1. **Daily summary** — posts a per-author AI digest of today's commits to the group
+2. **Squash** — merges consecutive same-author commits from today into one commit per author
 
-Cron schedules are defined in `wrangler.toml` and cannot be overridden via secrets.
+Running summary before squash ensures it sees the original commit messages. Cron schedule is defined in `wrangler.toml` and cannot be overridden via secrets.
 
 ### Free tier limits
 
@@ -230,9 +247,11 @@ Cloudflare Workers free tier is sufficient for normal bot usage:
 | Resource | Free limit | Typical bot usage |
 |---|---|---|
 | Requests | 100,000/day | ~2–20/day |
-| Cron Triggers | 5 triggers | 2 triggers |
+| Cron Triggers | 5 triggers | 1 trigger |
 | KV reads | 100,000/day | <100/day |
 | KV writes | 1,000/day | <20/day |
+| D1 reads | 5,000,000/month | <1,000/month |
+| D1 writes | 100,000/month | <500/month |
 
 > **Note:** CF Workers free tier has a 10ms CPU time limit per request. Since summarisation calls await external AI APIs (Anthropic/OpenAI), and CF counts only active CPU time (not I/O wait), this limit is not a concern in practice. The paid plan ($5/month) raises the limit to 30s CPU and is recommended only for very large meeting transcript batches.
 
@@ -286,6 +305,12 @@ npm run job:summary   # Run daily summary job immediately
 - [ ] File not found → "File not found: `<filename>`."
 - [ ] Unauthorised user → "You don't have permission to use this command."
 
+### /usage
+- [ ] `/usage` → last 24h token counts and cost by trigger and user
+- [ ] `/usage 7d` → 7-day breakdown
+- [ ] No D1 configured → "Usage tracking is not available" (or command not registered)
+- [ ] Unauthorised user → "You don't have permission to use this command."
+
 ### Nightly Jobs (manual trigger)
 - [ ] `npm run job:squash` → ✅ or "nothing to squash" message appears in Telegram
 - [ ] `npm run job:summary` → daily digest posted in Telegram group
@@ -312,6 +337,7 @@ GitHAssistant runs in two modes that share all business logic:
     │  dotenv config           │      │  CF Cron Triggers        │
     │  Local / Render.com      │      │  CF Workers secrets      │
     └─────────────────────────┘      │  CF KV (callback state)  │
+                                     │  CF D1 (AI usage log)    │
                                      └─────────────────────────┘
 ```
 
@@ -319,7 +345,7 @@ Three subsystems wired at startup (both modes):
 
 1. **Config** — validates env vars at boot, exits with descriptive error on missing vars
 2. **Messaging** — platform-specific adapter implementing `MessagingAdapter`; Telegram is the only concrete implementation (Telegraf polling for Node.js, webhook handler for CF Workers)
-3. **AI** — pluggable provider behind `AIProvider` interface; Anthropic and OpenAI supported
+3. **AI** — pluggable provider behind `AIProvider` interface; Anthropic and OpenAI supported; every call is instrumented with an optional `UsageTracker` that logs tokens and cost to CF D1
 
 AI skills live in `.claude/skills/` as plain Markdown files and are loaded at runtime — swap or edit a skill file to change how the AI behaves without touching code.
 

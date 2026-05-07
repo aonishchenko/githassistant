@@ -1,6 +1,6 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
-import type { Config, AIProvider, CommandPlugin } from '../types.js';
+import type { Config, AIProvider, CommandPlugin, UsageContext } from '../types.js';
 import { fetchCommits, fetchCommitFiles } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
@@ -97,9 +97,10 @@ export function createSummaryPlugin(
 
       const authorSummaries: AuthorSummary[] = [];
       for (const [authorLogin, diffs] of authorDiffs.entries()) {
+        const usageCtx: UsageContext = { trigger: 'summary', username: ctx.username };
         let summary: string;
         try {
-          summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage, authorLogin);
+          summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage, authorLogin, usageCtx);
         } catch (err) {
           log.error({ err, authorLogin }, 'AI summarisation failed');
           summary = commits
