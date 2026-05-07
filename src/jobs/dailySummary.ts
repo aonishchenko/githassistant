@@ -19,6 +19,7 @@ export function createDailySummaryJob(
     name: 'dailySummary',
     handler: async () => {
       const { since, until, dateStr } = buildWindow();
+      log.info({ dateStr }, 'daily summary job started');
 
       let commits: GitHubCommit[];
       try {
@@ -29,6 +30,7 @@ export function createDailySummaryJob(
       }
 
       if (commits.length === 0) {
+        log.info({ dateStr }, 'daily summary: no commits found');
         await adapter.sendMessage(`No commits on ${dateStr} — nothing to summarise.`);
         return;
       }
@@ -63,6 +65,7 @@ export function createDailySummaryJob(
       }
 
       await adapter.sendMessage(formatSummaryMessage(dateStr, authorSummaries), { parseMode: 'Markdown' });
+      log.info({ dateStr, commitCount: commits.length, authorCount: authorSummaries.length }, 'daily summary job completed');
     },
   };
 }

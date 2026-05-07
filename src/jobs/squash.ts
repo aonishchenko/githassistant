@@ -1,4 +1,5 @@
 import type { Octokit } from '@octokit/rest';
+import type { Logger } from 'pino';
 import type { Config, MessagingAdapter, JobPlugin, GitHubCommit, AuthorCommitGroup } from '../types.js';
 import { fetchCommits, createCommit, updateBranchRef } from '../github/commits.js';
 
@@ -164,13 +165,19 @@ export function createSquashJob(
   octokit: Octokit,
   config: Config,
   adapter: MessagingAdapter,
+  log?: Logger,
   buildWindow: () => SquashWindow = () => buildTodayWindow(config.scheduler.timezone),
 ): JobPlugin {
   return {
     name: 'squash',
     handler: async () => {
       if (!config.behavior.squashEnabled) return;
-      await runSquash(octokit, config, buildWindow(), msg => adapter.sendMessage(msg));
+      const window = buildWindow();
+      log?.info({ dateStr: window.dateStr }, 'squash job started');
+      await runSquash(octokit, config, window, async msg => {
+        log?.info({ msg }, 'squash job result');
+        await adapter.sendMessage(msg);
+      });
     },
   };
 }
@@ -186,7 +193,7 @@ if (isMain) {
   const log = pino({ level: config.behavior.logLevel });
   const octokit = new Octokit({ auth: config.github.token });
   const adapter = new TelegramAdapter(config, log);
-  createSquashJob(octokit, config, adapter).handler().catch((err: unknown) => {
+  createSquashJob(octokit, config, adapter, log).handler().catch((err: unknown) => {
     log.error(err);
     process.exit(1);
   });
