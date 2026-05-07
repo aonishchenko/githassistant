@@ -5,7 +5,7 @@ import { fetchCommits, fetchCommitDiff } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
-import { buildYesterdayWindow } from './squash.js';
+import { buildTodayWindow, buildYesterdayWindow, type SquashWindow } from './squash.js';
 
 export function createDailySummaryJob(
   octokit: Octokit,
@@ -13,11 +13,12 @@ export function createDailySummaryJob(
   adapter: MessagingAdapter,
   aiProvider: AIProvider,
   log: Logger,
+  buildWindow: () => SquashWindow = () => buildTodayWindow(config.scheduler.timezone),
 ): JobPlugin {
   return {
     name: 'dailySummary',
     handler: async () => {
-      const { since, until, dateStr } = buildYesterdayWindow(config.scheduler.timezone);
+      const { since, until, dateStr } = buildWindow();
 
       let commits: GitHubCommit[];
       try {

@@ -11,7 +11,7 @@ describe('summariseMeeting', () => {
     expect(mockProvider.summarise).toHaveBeenCalledWith(
       expect.stringContaining('Executive Summary'),
       'Transcript text here',
-      4096,
+      8192,
     );
     expect(result).toBe('Generated summary');
   });

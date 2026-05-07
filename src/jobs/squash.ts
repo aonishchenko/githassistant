@@ -36,6 +36,31 @@ export interface SquashWindow {
   dateStr: string;
 }
 
+// Convert a YYYY-MM-DD date string at midnight in `timezone` to a UTC Date.
+function toUTCMidnight(dateStr: string, timezone: string): Date {
+  const utcApprox = new Date(`${dateStr}T00:00:00.000Z`);
+  const localTimeParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour12: false,
+  }).formatToParts(utcApprox);
+  const localHour = parseInt(localTimeParts.find(p => p.type === 'hour')!.value, 10);
+  const localMin = parseInt(localTimeParts.find(p => p.type === 'minute')!.value, 10);
+  const localSec = parseInt(localTimeParts.find(p => p.type === 'second')!.value, 10);
+  const localSecsFromMidnight = localHour * 3600 + localMin * 60 + localSec;
+  return new Date(utcApprox.getTime() - localSecsFromMidnight * 1000);
+}
+
+export function buildTodayWindow(timezone: string, now: Date = new Date()): SquashWindow {
+  const dateStr = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+  const since = toUTCMidnight(dateStr, timezone);
+  return { since, until: now, dateStr };
+}
+
 export function buildYesterdayWindow(timezone: string, now: Date = new Date()): SquashWindow {
   const dateFmt = new Intl.DateTimeFormat('sv-SE', {
     timeZone: timezone,
@@ -43,30 +68,8 @@ export function buildYesterdayWindow(timezone: string, now: Date = new Date()): 
   });
   const todayStr = dateFmt.format(now);
   const yesterdayStr = dateFmt.format(new Date(now.getTime() - 24 * 60 * 60 * 1000));
-
-  // Convert a YYYY-MM-DD date string at midnight in `timezone` to a UTC Date.
-  // Strategy: start with UTC midnight as approximation, then compute the local time
-  // offset at that instant using Intl.DateTimeFormat.formatToParts, and adjust.
-  const toUTCMidnight = (dateStr: string): Date => {
-    const utcApprox = new Date(`${dateStr}T00:00:00.000Z`);
-    const localTimeParts = new Intl.DateTimeFormat('en-US', {
-      timeZone: timezone,
-      year: 'numeric', month: '2-digit', day: '2-digit',
-      hour: '2-digit', minute: '2-digit', second: '2-digit',
-      hour12: false,
-    }).formatToParts(utcApprox);
-    const localHour = parseInt(localTimeParts.find(p => p.type === 'hour')!.value, 10);
-    const localMin = parseInt(localTimeParts.find(p => p.type === 'minute')!.value, 10);
-    const localSec = parseInt(localTimeParts.find(p => p.type === 'second')!.value, 10);
-    // UTC midnight in a UTC+X timezone appears as time X:00:00 locally.
-    // To reach local midnight, subtract that many seconds from the UTC approximation.
-    const localSecsFromMidnight = localHour * 3600 + localMin * 60 + localSec;
-    return new Date(utcApprox.getTime() - localSecsFromMidnight * 1000);
-  };
-
-  const since = toUTCMidnight(yesterdayStr);
-  const until = toUTCMidnight(todayStr);
-
+  const since = toUTCMidnight(yesterdayStr, timezone);
+  const until = toUTCMidnight(todayStr, timezone);
   return { since, until, dateStr: yesterdayStr };
 }
 
@@ -91,7 +94,8 @@ export async function runSquash(
 
   let commits: GitHubCommit[];
   try {
-    commits = await fetchCommits(octokit, config, since, until);
+    const all = await fetchCommits(octokit, config, since, until);
+    commits = all.filter(c => !/^daily\(@/.test(c.message));
   } catch (err: unknown) {
     await send(`❌ Squash failed: could not fetch commits. ${(err as Error).message}`);
     return;
@@ -160,7 +164,7 @@ export function createSquashJob(
   octokit: Octokit,
   config: Config,
   adapter: MessagingAdapter,
-  buildWindow: () => SquashWindow = () => buildYesterdayWindow(config.scheduler.timezone),
+  buildWindow: () => SquashWindow = () => buildTodayWindow(config.scheduler.timezone),
 ): JobPlugin {
   return {
     name: 'squash',

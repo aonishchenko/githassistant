@@ -124,7 +124,7 @@ describe('/note callback handler', () => {
     const { callbackHandler } = createNotePlugin(octokit, config);
     const ctx = {
       userId: '42', username: 'alice',
-      callbackData: 'note_file:docs/notes.md',
+      callbackData: 'nf:docs/notes.md',
       replyText: vi.fn(),
       answerCallback: vi.fn(),
       getPendingNote: vi.fn().mockReturnValue('Pending note text.'),
@@ -142,7 +142,7 @@ describe('/note callback handler', () => {
     const { callbackHandler } = createNotePlugin(makeOctokit(), config);
     const ctx = {
       userId: '42', username: 'alice',
-      callbackData: 'note_file:docs/notes.md',
+      callbackData: 'nf:docs/notes.md',
       replyText: vi.fn(),
       answerCallback: vi.fn(),
       getPendingNote: vi.fn().mockReturnValue(undefined),

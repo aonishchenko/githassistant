@@ -101,9 +101,9 @@ describe('isTranscriptFile', () => {
 });
 
 describe('createMeetingSummaryPlugin', () => {
-  it('registers as /meeting-summary with auth required', () => {
+  it('registers as /meetingsummary with auth required', () => {
     const { plugin } = createMeetingSummaryPlugin(makeOctokit(), config, mockAI, log);
-    expect(plugin.command).toBe('meeting-summary');
+    expect(plugin.command).toBe('meetingsummary');
     expect(plugin.requiresAuth).toBe(true);
   });
 });
@@ -157,7 +157,7 @@ describe('/meeting-summary <filename> — single file', () => {
     expect(ctx.replyText).toHaveBeenCalledWith(expect.stringContaining('AI summary output'));
   });
 
-  it('replies with "already exists" message when summary file exists', async () => {
+  it('sends existing summary content when summary file already exists', async () => {
     const transcriptContent = Buffer.from('transcript').toString('base64');
     const summaryContent = Buffer.from('existing summary').toString('base64');
     const getContent = vi.fn()
@@ -170,7 +170,8 @@ describe('/meeting-summary <filename> — single file', () => {
     const ctx = makeCtx('2026-04-28-transcript.md');
     await plugin.handler(ctx);
     expect(createOrUpdate).not.toHaveBeenCalled();
-    expect(ctx.replyText).toHaveBeenCalledWith(expect.stringContaining('already exists'));
+    const calls = vi.mocked(ctx.replyText).mock.calls.map(c => c[0]);
+    expect(calls.some(t => t.includes('existing summary'))).toBe(true);
   });
 
   it('replies with file-not-found message when transcript does not exist', async () => {
@@ -216,7 +217,7 @@ describe('/meeting-summary callback handler', () => {
     );
     const ctx = {
       userId: '42', username: 'alice',
-      callbackData: 'meeting_file:meetings/2026-04-28-transcript.md',
+      callbackData: 'mf:meetings/2026-04-28-transcript.md',
       replyText: vi.fn(),
       answerCallback: vi.fn(),
       getPendingNote: vi.fn().mockReturnValue(undefined),

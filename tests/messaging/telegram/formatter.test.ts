@@ -14,8 +14,8 @@ describe('formatNoteAppend', () => {
 describe('formatSummaryMessage', () => {
   it('formats per-author summaries in Telegram Markdown', () => {
     const result = formatSummaryMessage('last 24h', [
-      { authorLogin: 'alice', summary: 'Alice worked on auth.' },
-      { authorLogin: 'bob', summary: 'Bob fixed the bug.' },
+      { authorLogin: 'alice', summary: 'Alice worked on auth.', files: [] },
+      { authorLogin: 'bob', summary: 'Bob fixed the bug.', files: ['src/fix.ts'] },
     ]);
     expect(result).toContain('📋 *Project summary — last 24h*');
     expect(result).toContain('👤 *@alice*');

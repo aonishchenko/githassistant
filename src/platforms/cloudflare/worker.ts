@@ -8,8 +8,7 @@ import { registerCommands } from '../../commands/registry.js';
 import { createSquashJob } from '../../jobs/squash.js';
 import { createDailySummaryJob } from '../../jobs/dailySummary.js';
 
-const SQUASH_CRON = '0 2 * * *';
-const SUMMARY_CRON = '0 6 * * *';
+const NIGHTLY_CRON = '30 23 * * *';
 
 function makeLogger(): Logger {
   const fmt = (obj: unknown, msg?: string) => {
@@ -66,12 +65,9 @@ export default {
   async scheduled(event: ScheduledEvent, env: CloudflareEnv): Promise<void> {
     const { config, octokit, aiProvider, adapter, log } = buildDeps(env);
 
-    if (event.cron === SQUASH_CRON) {
-      const job = createSquashJob(octokit, config, adapter);
-      await job.handler();
-    } else if (event.cron === SUMMARY_CRON) {
-      const job = createDailySummaryJob(octokit, config, adapter, aiProvider, log);
-      await job.handler();
+    if (event.cron === NIGHTLY_CRON) {
+      await createDailySummaryJob(octokit, config, adapter, aiProvider, log).handler();
+      await createSquashJob(octokit, config, adapter).handler();
     }
   },
 };
