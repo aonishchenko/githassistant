@@ -105,7 +105,7 @@ export type UsageTracker = (record: {
   model: string;
   inputTokens: number;
   outputTokens: number;
-  costUsd: number;
+  costUsd: number | null;
 }) => Promise<void>;
 
 export interface AIProvider {

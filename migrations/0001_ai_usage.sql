@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS ai_usage (
   model     TEXT    NOT NULL,
   input_tk  INTEGER NOT NULL,
   output_tk INTEGER NOT NULL,
-  cost_usd  REAL    NOT NULL
+  cost_usd  REAL
 );
 CREATE INDEX IF NOT EXISTS ai_usage_ts ON ai_usage(ts);
 CREATE INDEX IF NOT EXISTS ai_usage_username ON ai_usage(username);

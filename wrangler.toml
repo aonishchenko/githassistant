@@ -5,7 +5,6 @@ compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "GITHASSISTANT_KV"
-id = "1f03799510ba49a4a0183ccb661c13a4"
 # id = "REPLACE_WITH_KV_NAMESPACE_ID"
 
 [[d1_databases]]

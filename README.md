@@ -114,7 +114,7 @@ All variables with defaults are documented in `.env.example`.
 | `/summary [period]` | None | AI-generated summary of recent commits by author |
 | `/squash [period]` | Required | Squash multiple commits into one per author |
 | `/meetingsummary [file\|period]` | Required | Summarise meeting transcript(s) from the meetings folder |
-| `/usage [period]` | Required | Show AI token usage and cost breakdown by trigger and user |
+| `/usage [period]` | Required | Show AI token usage and cost breakdown by trigger and user (CF only) |
 | `/help` | None | Show command reference |
 
 **Auth** means the sender must be in `TELEGRAM_ALLOWED_USERS` or a group admin.
@@ -139,7 +139,9 @@ The bot finds the right file automatically:
 /usage 1w       → last week
 ```
 
-Shows total tokens (input + output), cost in USD, and a breakdown by trigger (`/summary`, `/meetingsummary`, `cron:daily`, etc.) and by user. Requires a configured D1 database (see Cloudflare Workers setup below).
+Shows total tokens (input + output), cost in USD, and a breakdown by trigger (`/summary`, `/meetingsummary`, `cron:daily`, etc.) and by user.
+
+> **Cloudflare Workers only.** This command requires a D1 database and is not available in local or Render.com deployments. See Cloudflare Workers setup below.
 
 ### /meetingsummary forms
 
@@ -161,6 +163,43 @@ Both jobs run automatically at `NIGHTLY_CRON` (default 23:30 UTC). The daily sum
 - **Squash** — merges consecutive same-author commits from today into one commit per run on `GITHUB_DEFAULT_BRANCH`; skips any existing `daily(@` squash commits to avoid double-squashing
 
 Set `SQUASH_ENABLED=false` to disable squash while keeping the digest running.
+
+## Telegram Bot Setup
+
+### 1. Create the bot
+
+1. Open [@BotFather](https://t.me/BotFather) in Telegram
+2. Send `/newbot` and follow the prompts — choose a name and username
+3. Copy the token BotFather gives you → this is your `TELEGRAM_BOT_TOKEN`
+4. Send `/setdescription` → select your bot → paste:
+   ```
+   GitHAssistant keeps your GitHub project documented and tidy — straight from Telegram. Commit notes, get AI summaries of who did what, summarise meeting transcripts, and clean up commit history. All from chat.
+   ```
+5. Send `/setabouttext` → select your bot → paste:
+   ```
+   GitHub assistant for teams. Notes → GitHub commits. AI daily digests. Meeting transcript summaries. Commit history squash.
+   ```
+
+### 2. Register bot commands
+
+Send `/setcommands` to BotFather, select your bot, then paste the full list below as a single message:
+
+```
+note - Append a note to a file in the repo
+summary - AI summary of recent commits by author
+squash - Squash consecutive commits per author into one
+meetingsummary - Summarise a meeting transcript from the meetings folder
+usage - Show AI token usage and cost by trigger and user (CF only)
+help - Show command reference
+```
+
+### 3. Add the bot to your group
+
+1. Add the bot as a member of your Telegram group
+2. Promote it to **admin** — it needs permission to read messages and send messages
+3. Send any message in the group, then call `https://api.telegram.org/bot<TOKEN>/getUpdates` to find the numeric group ID → this is your `TELEGRAM_GROUP_ID`
+
+---
 
 ## Deployment (Local / Render.com)
 
@@ -240,81 +279,12 @@ Both jobs run automatically via a single CF Cron Trigger at `30 23 * * *` (23:30
 
 Running summary before squash ensures it sees the original commit messages. Cron schedule is defined in `wrangler.toml` and cannot be overridden via secrets.
 
-### Free tier limits
-
-Cloudflare Workers free tier is sufficient for normal bot usage:
-
-| Resource | Free limit | Typical bot usage |
-|---|---|---|
-| Requests | 100,000/day | ~2–20/day |
-| Cron Triggers | 5 triggers | 1 trigger |
-| KV reads | 100,000/day | <100/day |
-| KV writes | 1,000/day | <20/day |
-| D1 reads | 5,000,000/month | <1,000/month |
-| D1 writes | 100,000/month | <500/month |
-
-> **Note:** CF Workers free tier has a 10ms CPU time limit per request. Since summarisation calls await external AI APIs (Anthropic/OpenAI), and CF counts only active CPU time (not I/O wait), this limit is not a concern in practice. The paid plan ($5/month) raises the limit to 30s CPU and is recommended only for very large meeting transcript batches.
-
 ## Manual Job Triggers
 
 ```bash
 npm run job:squash    # Run nightly squash job immediately
 npm run job:summary   # Run daily summary job immediately
 ```
-
-## Manual Test Checklist
-
-### /note
-- [ ] Full path: `/note docs/meeting-notes.md Sprint recap.`
-- [ ] Filename only, one match: `/note meeting-notes.md Sprint recap.`
-- [ ] Filename only, multiple matches: shows inline keyboard to pick file
-- [ ] Bare name (no extension), one match: `/note meeting Sprint recap.`
-- [ ] Bare name, no match: shows full file picker with note stored
-- [ ] Shortcut: `/note i New logo direction.`
-- [ ] No path: `/note We agreed to deprecate the API.`
-- [ ] No path, no text: `/note` → select file → bot asks for text
-- [ ] Rejected path: `/note secrets/pw.md text` → "not in an accessible folder"
-- [ ] Unauthorised user → "You don't have permission to use this command."
-
-### /summary
-- [ ] `/summary` → last 24h digest with 2–3 sentence summary and file list per author
-- [ ] `/summary 3d` → 3-day digest
-- [ ] `/summary 1w` → 7-day digest
-- [ ] `/summary 2025-04-20` → since ISO date
-- [ ] `/summary 100d` → "Maximum summary window is N days"
-- [ ] >10 files per author → first 10 shown, remainder noted as "…and N more (M files total)"
-- [ ] AI fallback: set invalid API key → falls back to plain commit list with note
-
-### /squash
-- [ ] `/squash` → squash last 24h until now
-- [ ] `/squash 3d` → squash last 3 days
-- [ ] `/squash 2025-04-20` → squash since ISO date
-- [ ] Interleaved commits (A→B→A→B) → creates 4 commits (no merging across runs)
-- [ ] Consecutive commits (A→A→B→B) → creates 2 squash commits, each diff shows only that author's changes
-- [ ] Nothing to squash (each author has 1 commit) → confirmation message
-- [ ] Unauthorised user → "You don't have permission to use this command."
-
-### /meetingsummary
-- [ ] `/meetingsummary` → shows transcript picker (summary files excluded; `.md`, `.txt`, and extensionless files included)
-- [ ] `/meetingsummary <filename>` → generates, commits, and posts summary
-- [ ] `/meetingsummary <filename>` (summary already exists) → posts existing summary content to chat, no regeneration
-- [ ] Long summary (>4000 chars) → split across multiple Telegram messages
-- [ ] `/meetingsummary 1w` → generates summaries for all transcripts in last week; posts existing ones without regenerating
-- [ ] `/meetingsummary 1w` with underscore-date filenames (e.g. `Meeting_2026_04_29.md`) → correctly filtered by filename date
-- [ ] `/meetingsummary` → select from picker → summary generated and committed
-- [ ] File not found → "File not found: `<filename>`."
-- [ ] Unauthorised user → "You don't have permission to use this command."
-
-### /usage
-- [ ] `/usage` → last 24h token counts and cost by trigger and user
-- [ ] `/usage 7d` → 7-day breakdown
-- [ ] No D1 configured → "Usage tracking is not available" (or command not registered)
-- [ ] Unauthorised user → "You don't have permission to use this command."
-
-### Nightly Jobs (manual trigger)
-- [ ] `npm run job:squash` → ✅ or "nothing to squash" message appears in Telegram
-- [ ] `npm run job:summary` → daily digest posted in Telegram group
-- [ ] Squash revert: use `git reflog` to find the pre-squash tip, then `git push --force origin <sha>:main` to restore
 
 ## Architecture
 
