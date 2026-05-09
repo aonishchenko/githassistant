@@ -82,13 +82,29 @@ The following must be set or the process exits with a descriptive error:
 
 - `TELEGRAM_BOT_TOKEN` — From BotFather
 - `TELEGRAM_GROUP_ID` — Numeric group/supergroup ID (bot must be a member)
-- `GITHUB_TOKEN` — Fine-grained PAT: Contents Read+Write, Metadata Read
+- `GITHUB_TOKEN` — Fine-grained PAT (see setup below)
 - `GITHUB_OWNER` — Repository owner (user or org)
 - `GITHUB_REPO` — Repository name
 - `ANTHROPIC_API_KEY` — From console.anthropic.com (separate from claude.ai, billed by token usage). Required when `AI_PROVIDER=anthropic` (default).
 - `OPENAI_API_KEY` — From platform.openai.com. Required when `AI_PROVIDER=openai`.
 
 All variables with defaults are documented in `.env.example`.
+
+### GitHub token setup
+
+Create a **fine-grained personal access token** at GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens:
+
+1. Set **Resource owner** to the org or user that owns the repo (e.g. `empiro-io`)
+2. Under **Repository access** → select **Only select repositories** → pick your repo
+3. Under **Permissions → Repositories**, add:
+   - **Contents** — Read and write (commit notes, read files)
+   - **Issues** — Read and write (`/issueadd` — create and list issues)
+   - **Metadata** — Read (required by GitHub for all fine-grained tokens)
+4. Under **Permissions → Organizations**, add:
+   - **Projects** — Read and write (`/issueadd` — add issues to the linked project)
+5. Click **Generate token** and copy the value → this is your `GITHUB_TOKEN`
+
+> The Organizations tab only appears when the resource owner is an organisation. If you set resource owner to your personal account and the repo belongs to an org, switch the resource owner to the org.
 
 ## Optional Environment Variables
 
