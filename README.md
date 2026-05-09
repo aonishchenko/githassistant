@@ -12,7 +12,7 @@ A Telegram bot that keeps your GitHub project documented, summarised, and tidy �
 |---|---|
 | 📝 **Instant notes** | Send a thought in Telegram, it's committed to your repo in seconds |
 | 📊 **Daily digest** | Every morning: a plain-English summary of who did what, posted automatically |
-| 🗂️ **Clean history** | Nightly squash keeps your commit log readable without losing any work |
+| 🔍 **Docs diff viewer** | See exactly what changed in your docs files for any period |
 | 🎙️ **Meeting summaries** | Drop a transcript, get back exec summary + action items + full topic breakdown |
 | 💰 **AI usage tracking** | Every AI call is logged to D1 — query token counts and cost by period or user |
 
@@ -64,15 +64,15 @@ Already summarised? The bot won't regenerate — it reads the existing summary f
 
 ---
 
-**Clean up noisy commit history.**
-Does someone on the team push a dozen small commits per day? `/squash` merges consecutive commits from the same author into one tidy commit, keeping the history readable without losing any changes. Consecutive-run squashing ensures each squash commit's diff shows only that author's changes — not unrelated work from others who committed in between.
+**See exactly what changed in your docs.**
+Want to know what was actually written or edited in your docs folder over the last day or week? `/changes` fetches the unified diff for every file in `DOCS_PATH`, so you can see the exact lines added and removed — not just commit messages.
 
 ```
-/squash        → squash last 24 hours
-/squash 3d     → squash last 3 days
+/changes                    → all docs files, last 24 hours
+/changes 3d                 → all docs files, last 3 days
+/changes docs/notes.md      → specific file, last 24 hours
+/changes docs/notes.md 1w   → specific file, last week
 ```
-
-The nightly job also runs this automatically so the history stays clean without manual effort.
 
 ---
 
@@ -98,13 +98,12 @@ All variables with defaults are documented in `.env.example`.
 | `ANTHROPIC_MODEL` | `claude-sonnet-4-5` | Anthropic model name |
 | `OPENAI_MODEL` | `gpt-4o` | OpenAI model name (used when `AI_PROVIDER=openai`) |
 | `MEETING_NOTES_FOLDER` | `meetings` | GitHub folder path containing meeting transcripts |
-| `NOTE_ALLOWED_PATHS` | `docs` | Comma-separated folders `/note` can write to |
-| `NOTE_EXCLUDED_PATHS` | _(none)_ | Comma-separated folders excluded from `/note` picker. `MEETING_NOTES_FOLDER` is auto-excluded if it is a subfolder of `NOTE_ALLOWED_PATHS` |
+| `DOCS_PATH` | `docs` | Comma-separated folders `/note` and `/changes` can access |
+| `NOTE_EXCLUDED_PATHS` | _(none)_ | Comma-separated folders excluded from `/note` picker. `MEETING_NOTES_FOLDER` is auto-excluded if it is a subfolder of `DOCS_PATH` |
 | `NOTE_SHORTCUTS` | _(none)_ | Comma-separated `key=path` shortcuts, e.g. `i=docs/ideas.md` |
 | `NIGHTLY_CRON` | `0 2 * * *` | Cron expression for nightly jobs |
 | `TIMEZONE` | `UTC` | Timezone for nightly job scheduling |
-| `SUMMARY_MAX_DAYS` | `7` | Maximum period window for `/summary` and `/meetingsummary` |
-| `SQUASH_ENABLED` | `true` | Set to `false` to disable the nightly squash job |
+| `SUMMARY_MAX_DAYS` | `7` | Maximum period window for `/summary`, `/meetingsummary`, and `/changes` |
 
 ## Commands
 
@@ -112,14 +111,14 @@ All variables with defaults are documented in `.env.example`.
 |---|---|---|
 | `/note [file\|shortcut] <text>` | Required | Append a note to a repo file |
 | `/summary [period]` | None | AI-generated summary of recent commits by author |
-| `/squash [period]` | Required | Squash multiple commits into one per author |
+| `/changes [file] [period]` | None | Show unified diffs for docs files |
 | `/meetingsummary [file\|period]` | Required | Summarise meeting transcript(s) from the meetings folder |
 | `/usage [period]` | Required | Show AI token usage and cost breakdown by trigger and user (CF only) |
 | `/help` | None | Show command reference |
 
 **Auth** means the sender must be in `TELEGRAM_ALLOWED_USERS` or a group admin.
 
-**Period formats** (applies to `/summary`, `/squash`, `/meetingsummary`, and `/usage`): none (last 24h), `3d`, `1w`, `2025-04-20`
+**Period formats** (applies to `/summary`, `/changes`, `/meetingsummary`, and `/usage`): none (last 24h), `3d`, `1w`, `2025-04-20`
 
 ### /note forms
 
@@ -130,6 +129,17 @@ The bot finds the right file automatically:
 - **Bare name (no extension):** `/note meeting Sprint recap.` — matches `docs/meeting.md` or `docs/drive/meeting` by basename
 - **Shortcut:** `/note i New idea.` — resolves via `NOTE_SHORTCUTS` config
 - **No path:** `/note Sprint recap.` — shows inline file picker; tap a file to append
+
+### /changes forms
+
+```
+/changes                    → all DOCS_PATH files, last 24 hours
+/changes 3d                 → all DOCS_PATH files, last 3 days
+/changes docs/notes.md      → specific file, last 24 hours
+/changes docs/notes.md 1w   → specific file, last week
+```
+
+Shows unified diffs (added/removed lines) for files in `DOCS_PATH`, excluding `MEETING_NOTES_FOLDER`. Output is split across multiple messages if needed. Capped at 10 commits per request.
 
 ### /usage forms
 
@@ -159,12 +169,7 @@ Period filtering uses dates embedded in the filename — both hyphen (`2026-04-2
 
 ### Nightly (23:30 UTC)
 
-Both jobs run in sequence:
-
-- **Daily summary** — posts a per-author AI narrative digest of today's commits to the group; runs before squash so it sees real commit messages
-- **Squash** — merges consecutive same-author commits from today into one commit per run on `GITHUB_DEFAULT_BRANCH`; skips any existing `daily(@` squash commits to avoid double-squashing
-
-Set `SQUASH_ENABLED=false` to disable squash while keeping the digest running.
+- **Daily summary** — posts a per-author AI narrative digest of today's commits to the group
 
 ### Meeting scan (every hour, CF only)
 
@@ -183,11 +188,11 @@ Every hour the bot scans `MEETING_NOTES_FOLDER` for transcripts committed since 
 3. Copy the token BotFather gives you → this is your `TELEGRAM_BOT_TOKEN`
 4. Send `/setdescription` → select your bot → paste:
    ```
-   GitHAssistant keeps your GitHub project documented and tidy — straight from Telegram. Commit notes, get AI summaries of who did what, summarise meeting transcripts, and clean up commit history. All from chat.
+   GitHAssistant keeps your GitHub project documented and tidy — straight from Telegram. Commit notes, get AI summaries of who did what, browse docs diffs, and summarise meeting transcripts. All from chat.
    ```
 5. Send `/setabouttext` → select your bot → paste:
    ```
-   GitHub assistant for teams. Notes → GitHub commits. AI daily digests. Meeting transcript summaries. Commit history squash.
+   GitHub assistant for teams. Notes → GitHub commits. AI daily digests. Docs diff viewer. Meeting transcript summaries.
    ```
 
 ### 2. Register bot commands
@@ -197,7 +202,7 @@ Send `/setcommands` to BotFather, select your bot, then paste the full list belo
 ```
 note - Append a note to a file in the repo
 summary - AI summary of recent commits by author
-squash - Squash consecutive commits per author into one
+changes - Show diffs for docs files (default: last 24h)
 meetingsummary - Summarise a meeting transcript from the meetings folder
 usage - Show AI token usage and cost by trigger and user (CF only)
 help - Show command reference
@@ -289,17 +294,18 @@ npm run cf:dev   # wrangler dev — runs CF Workers runtime locally on port 8787
 
 ### Nightly job schedule
 
-Both jobs run automatically via a single CF Cron Trigger at `30 23 * * *` (23:30 UTC):
+Two cron triggers are defined in `wrangler.toml`:
 
-1. **Daily summary** — posts a per-author AI digest of today's commits to the group
-2. **Squash** — merges consecutive same-author commits from today into one commit per author
+| Schedule | Job | Description |
+|---|---|---|
+| `30 23 * * *` | Daily summary | Posts a per-author AI digest of today's commits to the group |
+| `0 * * * *` | Meeting scan | Checks for new transcripts and posts summaries to the group |
 
-Running summary before squash ensures it sees the original commit messages. Cron schedule is defined in `wrangler.toml` and cannot be overridden via secrets.
+Cron schedules are defined in `wrangler.toml` and cannot be overridden via secrets.
 
 ## Manual Job Triggers
 
 ```bash
-npm run job:squash    # Run nightly squash job immediately
 npm run job:summary   # Run daily summary job immediately
 ```
 
