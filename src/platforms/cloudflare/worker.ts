@@ -74,7 +74,9 @@ export default {
 
     if (event.cron === NIGHTLY_CRON) {
       await createDailySummaryJob(octokit, config, adapter, aiProvider, log).handler();
-      await createSquashJob(octokit, config, adapter, log).handler();
+      if (config.behavior.squashEnabled) {
+        await createSquashJob(octokit, config, adapter, log).handler();
+      }
     }
   },
 };
