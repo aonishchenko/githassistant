@@ -73,6 +73,7 @@ export default {
 
   async scheduled(event: ScheduledEvent, env: CloudflareEnv): Promise<void> {
     const { config, octokit, aiProvider, adapter, log } = await buildDeps(env);
+    log.info({ cron: event.cron }, 'scheduled trigger fired');
 
     if (event.cron === NIGHTLY_CRON) {
       await createDailySummaryJob(octokit, config, adapter, aiProvider, log).handler();
