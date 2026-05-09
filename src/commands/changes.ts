@@ -5,12 +5,12 @@ import { fetchCommits, fetchCommitPatches } from '../github/commits.js';
 import { parsePeriod } from './summary.js';
 import { sendLong } from './meeting-summary.js';
 
-const MAX_COMMITS = 10;
+const MAX_COMMITS = 50;
 
 function stripContext(patch: string): string {
   return patch
     .split('\n')
-    .filter(line => line.startsWith('+') || line.startsWith('-') || line.startsWith('@@'))
+    .filter(line => line.startsWith('+') || line.startsWith('-'))
     .join('\n');
 }
 
@@ -72,10 +72,10 @@ export function createChangesPlugin(
         return;
       }
 
-      const relevant = commits.slice(0, MAX_COMMITS);
-      const sections: string[] = [];
+      // author → filename → patch lines[]
+      const grouped = new Map<string, Map<string, string[]>>();
 
-      for (const commit of relevant) {
+      for (const commit of commits.slice(0, MAX_COMMITS)) {
         let patches;
         try {
           patches = await fetchCommitPatches(octokit, config, commit.sha, pathFilter);
@@ -83,24 +83,32 @@ export function createChangesPlugin(
           log.error({ err, sha: commit.shortSha }, 'changes: failed to fetch patches');
           continue;
         }
-        if (patches.length === 0) continue;
-
-        const header = `*@${commit.authorLogin}* (${commit.shortSha}) — ${commit.message}\n${commit.date.slice(0, 10)}`;
-        const body = patches.map(f => `\`${f.filename}\`\n\`\`\`\n${stripContext(f.patch)}\n\`\`\``).join('\n\n');
-        sections.push(`${header}\n\n${body}`);
+        for (const f of patches) {
+          const stripped = stripContext(f.patch);
+          if (!stripped) continue;
+          if (!grouped.has(commit.authorLogin)) grouped.set(commit.authorLogin, new Map());
+          const byFile = grouped.get(commit.authorLogin)!;
+          if (!byFile.has(f.filename)) byFile.set(f.filename, []);
+          byFile.get(f.filename)!.push(stripped);
+        }
       }
 
-      if (sections.length === 0) {
+      if (grouped.size === 0) {
         const scope = filePath ?? config.note.allowedPaths.join(', ');
         await ctx.replyText(`No changes found in \`${scope}\` for the requested period.`);
         return;
       }
 
-      const truncated = commits.length > MAX_COMMITS
-        ? `\n_(showing first ${MAX_COMMITS} of ${commits.length} commits)_`
-        : '';
-      await sendLong(sections.join('\n\n---\n\n') + truncated, t => ctx.replyText(t, { parseMode: 'Markdown' }));
-      log.info({ username: ctx.username, commitCount: sections.length }, 'changes command completed');
+      const sections: string[] = [];
+      for (const [author, byFile] of grouped) {
+        const fileBlocks = [...byFile.entries()]
+          .map(([filename, chunks]) => `\`${filename}\`\n\`\`\`\n${chunks.join('\n')}\n\`\`\``)
+          .join('\n\n');
+        sections.push(`*@${author}*\n\n${fileBlocks}`);
+      }
+
+      await sendLong(sections.join('\n\n---\n\n'), t => ctx.replyText(t, { parseMode: 'Markdown' }));
+      log.info({ username: ctx.username, authors: grouped.size }, 'changes command completed');
     },
   };
 }
