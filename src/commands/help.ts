@@ -16,6 +16,7 @@ export function createHelpPlugin(config: Config): CommandPlugin {
         `/note [file|shortcut] <text>  — Add a note to a project file\n` +
         `/summary [period]             — Summarise recent changes (default: last 24h)\n` +
         `/changes [file] [period]      — Show diffs for docs files (default: last 24h)\n` +
+        `/issueadd @user\\nTitle 1\\n... — Create GitHub issues from a list of titles\n` +
         `/meetingsummary [file|period] — Summarise a meeting transcript\n` +
         `/usage [period]               — Show AI token usage and cost stats\n` +
         `/help                         — Show this message` +

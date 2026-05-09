@@ -112,6 +112,7 @@ All variables with defaults are documented in `.env.example`.
 | `/note [file\|shortcut] <text>` | Required | Append a note to a repo file |
 | `/summary [period]` | None | AI-generated summary of recent commits by author |
 | `/changes [file] [period]` | None | Show unified diffs for docs files |
+| `/issueadd @user\nTitle 1\n...` | Required | Create GitHub issues from a list of titles |
 | `/meetingsummary [file\|period]` | Required | Summarise meeting transcript(s) from the meetings folder |
 | `/usage [period]` | Required | Show AI token usage and cost breakdown by trigger and user (CF only) |
 | `/help` | None | Show command reference |
@@ -140,6 +141,21 @@ The bot finds the right file automatically:
 ```
 
 Shows unified diffs (added/removed lines) for files in `DOCS_PATH`, excluding `MEETING_NOTES_FOLDER`. Output is split across multiple messages if needed. Capped at 10 commits per request.
+
+### /issueadd forms
+
+```
+/issueadd @username
+Issue title 1
+Issue title 2
+Issue title 3
+```
+
+- First line must be an @username (the GitHub assignee for all issues).
+- Each subsequent line becomes one GitHub issue in `GITHUB_REPO`.
+- The bot fetches existing open issues and skips any with a matching title (case-insensitive).
+- AI picks the best label from the repo's label list (single batched call); uses no label if none fits.
+- Reply shows three sections: ✅ created, ⏭️ skipped (duplicates), ❌ failed.
 
 ### /usage forms
 
@@ -200,11 +216,12 @@ Every hour the bot scans `MEETING_NOTES_FOLDER` for transcripts committed since 
 Send `/setcommands` to BotFather, select your bot, then paste the full list below as a single message:
 
 ```
-note - Append a note to a file in the repo
-summary - AI summary of recent commits by author
-changes - Show diffs for docs files (default: last 24h)
-meetingsummary - Summarise a meeting transcript from the meetings folder
-usage - Show AI token usage and cost by trigger and user (CF only)
+note - Append a note to a project file (/note [file] <text>; e.g. /note ideas.md Great new feature idea)
+summary - AI-generated summary of commits by author (/summary [period]; e.g. /summary or /summary 3d)
+changes - Show diffs for specified files or all in docs folder for specific timeframe (default: last 24h)
+issueadd - Create GitHub issues from a list of titles; first line @assignee, each next line = one issue title
+meetingsummary - Summarise meeting transcript(s) from the meetings folder (specify period like 1d or 1w, or specify the meeting transcript file name in the params; /meetingsummary [file\|period])
+usage - Show AI token usage and cost by trigger and user (/usage [period])
 help - Show command reference
 ```
 

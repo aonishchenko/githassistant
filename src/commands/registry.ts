@@ -6,6 +6,7 @@ import { createNotePlugin } from './note.js';
 import { createSummaryPlugin } from './summary.js';
 import { createMeetingSummaryPlugin } from './meeting-summary.js';
 import { createChangesPlugin } from './changes.js';
+import { createIssueAddPlugin } from './issueadd.js';
 
 export function registerCommands(
   adapter: MessagingAdapter,
@@ -26,6 +27,9 @@ export function registerCommands(
 
   const changesPlugin = createChangesPlugin(octokit, config, log);
   adapter.onCommand(changesPlugin.command, changesPlugin.handler);
+
+  const issueAddPlugin = createIssueAddPlugin(octokit, config, aiProvider, log);
+  adapter.onCommand(issueAddPlugin.command, withAuth(issueAddPlugin, adapter));
 
   const { plugin: meetingPlugin, callbackHandler: meetingCallback } =
     createMeetingSummaryPlugin(octokit, config, aiProvider, log);
