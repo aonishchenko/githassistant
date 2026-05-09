@@ -7,6 +7,13 @@ import { sendLong } from './meeting-summary.js';
 
 const MAX_COMMITS = 10;
 
+function stripContext(patch: string): string {
+  return patch
+    .split('\n')
+    .filter(line => line.startsWith('+') || line.startsWith('-') || line.startsWith('@@'))
+    .join('\n');
+}
+
 function isInDocsPaths(filename: string, allowedPaths: string[], excludedPaths: string[]): boolean {
   const inAllowed = allowedPaths.some(p => filename === p || filename.startsWith(p + '/'));
   const inExcluded = excludedPaths.some(p => filename === p || filename.startsWith(p + '/'));
@@ -79,7 +86,7 @@ export function createChangesPlugin(
         if (patches.length === 0) continue;
 
         const header = `*@${commit.authorLogin}* (${commit.shortSha}) — ${commit.message}\n${commit.date.slice(0, 10)}`;
-        const body = patches.map(f => `\`${f.filename}\`\n\`\`\`\n${f.patch}\n\`\`\``).join('\n\n');
+        const body = patches.map(f => `\`${f.filename}\`\n\`\`\`\n${stripContext(f.patch)}\n\`\`\``).join('\n\n');
         sections.push(`${header}\n\n${body}`);
       }
 
