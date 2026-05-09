@@ -77,6 +77,7 @@ export async function processFile(
   replyText: (text: string, opts?: SendOptions) => Promise<void>,
   log: Logger,
   usageCtx?: UsageContext,
+  silentIfExists = false,
 ): Promise<void> {
   const transcript = await getFile(octokit, config, transcriptPath);
   if (!transcript) {
@@ -106,11 +107,13 @@ export async function processFile(
     await sendLong(summary, replyText);
   } else {
     log.info({ summaryPath }, 'summary already exists, skipping AI generation');
-    await replyText(
-      `<a href="${githubFileUrl(config, summaryPath)}">${path.basename(summaryPath)}</a>`,
-      { parseMode: 'HTML' as const },
-    );
-    await sendLong(content, replyText);
+    if (!silentIfExists) {
+      await replyText(
+        `<a href="${githubFileUrl(config, summaryPath)}">${path.basename(summaryPath)}</a>`,
+        { parseMode: 'HTML' as const },
+      );
+      await sendLong(content, replyText);
+    }
   }
 }
 

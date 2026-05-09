@@ -7,7 +7,7 @@ import { createAIProvider } from '../../ai/provider.js';
 import { registerCommands, withAuth } from '../../commands/registry.js';
 import { createSquashJob } from '../../jobs/squash.js';
 import { createDailySummaryJob } from '../../jobs/dailySummary.js';
-import { createMeetingScanJob } from '../../jobs/meetingScan.js';
+import { createMeetingScanJob, processMeetingScanMessage, type MeetingScanMessage } from '../../jobs/meetingScan.js';
 import { createD1UsageTracker } from './d1-tracker.js';
 
 const NIGHTLY_CRON = '30 23 * * *';
@@ -58,15 +58,19 @@ export default {
     return new Response('OK', { status: 200 });
   },
 
-  async queue(batch: MessageBatch<TelegramUpdate>, env: CloudflareEnv): Promise<void> {
-    const { adapter } = await buildDeps(env);
+  async queue(batch: MessageBatch<TelegramUpdate | MeetingScanMessage>, env: CloudflareEnv): Promise<void> {
+    const { adapter, octokit, config, aiProvider, log } = await buildDeps(env);
     for (const message of batch.messages) {
       try {
-        await adapter.handleUpdate(message.body);
+        if ('type' in message.body && message.body.type === 'meeting_scan') {
+          await processMeetingScanMessage(octokit, config, aiProvider, message.body.transcriptPath, adapter.sendMessage.bind(adapter), log);
+        } else {
+          await adapter.handleUpdate(message.body as TelegramUpdate);
+        }
         message.ack();
       } catch (err) {
-        console.error('Failed to process update:', err);
-        message.ack(); // don't retry — errors are systemic (rate limits, subrequest limits)
+        console.error('Failed to process message:', err);
+        message.ack(); // don't retry — errors are systemic
       }
     }
   },
@@ -83,7 +87,7 @@ export default {
     }
 
     if (event.cron === MEETING_SCAN_CRON) {
-      await createMeetingScanJob(octokit, config, aiProvider, env.GITHASSISTANT_KV, adapter.sendMessage.bind(adapter), log).handler();
+      await createMeetingScanJob(octokit, config, env.GITHASSISTANT_KV, env.BOT_QUEUE, log).handler();
     }
   },
 };

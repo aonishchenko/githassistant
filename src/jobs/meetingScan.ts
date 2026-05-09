@@ -1,25 +1,28 @@
 /// <reference types="@cloudflare/workers-types" />
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
-import type { Config, AIProvider, JobPlugin, UsageContext } from '../types.js';
+import type { Config, AIProvider, JobPlugin, SendOptions, UsageContext } from '../types.js';
 import { listFiles } from '../github/files.js';
 import { isTranscriptFile, getTranscriptDate, processFile } from '../commands/meeting-summary.js';
 
 const KV_KEY = 'meeting:last_scan';
 
+export interface MeetingScanMessage {
+  type: 'meeting_scan';
+  transcriptPath: string;
+}
+
 export function createMeetingScanJob(
   octokit: Octokit,
   config: Config,
-  aiProvider: AIProvider,
   kv: KVNamespace,
-  sendMessage: (text: string, opts?: { parseMode?: 'Markdown' | 'HTML' }) => Promise<void>,
+  queue: Queue,
   log: Logger,
 ): JobPlugin {
   return {
     name: 'meetingScan',
     handler: async () => {
       const now = Date.now();
-
       const lastScanStr = await kv.get(KV_KEY);
       const lastScanTs = lastScanStr ? parseInt(lastScanStr, 10) : 0;
       log.info({ lastScanTs }, 'meeting scan job started');
@@ -33,20 +36,32 @@ export function createMeetingScanJob(
         if (d && d.getTime() >= lastScanTs) toProcess.push(f);
       }
 
+      // Update KV before enqueuing — prevents full retry if worker crashes mid-send
+      await kv.put(KV_KEY, String(now));
+
       if (toProcess.length === 0) {
-        log.info({ lastScanTs }, 'meeting scan: no new transcripts');
-        await kv.put(KV_KEY, String(now));
+        log.info('meeting scan: no new transcripts');
         return;
       }
 
-      log.info({ count: toProcess.length }, 'meeting scan: processing new transcripts');
-      const usageCtx: UsageContext = { trigger: 'cron:meeting-scan', username: 'cron' };
-      for (const f of toProcess) {
-        await processFile(octokit, config, aiProvider, f, 'cron', sendMessage, log, usageCtx);
+      log.info({ count: toProcess.length }, 'meeting scan: queuing transcripts');
+      for (const transcriptPath of toProcess) {
+        await queue.send({ type: 'meeting_scan', transcriptPath } satisfies MeetingScanMessage);
       }
-
-      await kv.put(KV_KEY, String(now));
       log.info({ count: toProcess.length }, 'meeting scan job completed');
     },
   };
+}
+
+export async function processMeetingScanMessage(
+  octokit: Octokit,
+  config: Config,
+  aiProvider: AIProvider,
+  transcriptPath: string,
+  sendMessage: (text: string, opts?: SendOptions) => Promise<void>,
+  log: Logger,
+): Promise<void> {
+  log.info({ transcriptPath }, 'processing meeting scan message');
+  const usageCtx: UsageContext = { trigger: 'cron:meeting-scan', username: 'cron' };
+  await processFile(octokit, config, aiProvider, transcriptPath, 'cron', sendMessage, log, usageCtx, true);
 }
