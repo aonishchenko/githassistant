@@ -55,11 +55,11 @@ export function loadConfig(): Config {
       defaultBranch: process.env.GITHUB_DEFAULT_BRANCH ?? 'main',
     },
     note: {
-      allowedPaths: (process.env.NOTE_ALLOWED_PATHS ?? 'docs')
+      allowedPaths: (process.env.DOCS_PATH ?? 'docs')
         .split(',').map(s => s.trim()).filter(Boolean),
       excludedPaths: buildExcludedPaths(
         process.env.NOTE_EXCLUDED_PATHS ?? '',
-        process.env.NOTE_ALLOWED_PATHS ?? 'docs',
+        process.env.DOCS_PATH ?? 'docs',
         process.env.MEETING_NOTES_FOLDER ?? 'meetings',
       ),
       shortcuts: parseShortcuts(process.env.NOTE_SHORTCUTS ?? ''),
@@ -83,7 +83,6 @@ export function loadConfig(): Config {
     },
     behavior: {
       summaryMaxDays: parseInt(process.env.SUMMARY_MAX_DAYS ?? '7', 10),
-      squashEnabled: process.env.SQUASH_ENABLED !== 'false',
       summaryLanguage: process.env.SUMMARY_LANGUAGE ?? 'en',
       logLevel: process.env.LOG_LEVEL ?? 'info',
       rateLimitPerMin: parseInt(process.env.RATE_LIMIT_PER_MIN ?? '10', 10),

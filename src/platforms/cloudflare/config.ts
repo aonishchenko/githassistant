@@ -17,7 +17,7 @@ export interface CloudflareEnv {
   ANTHROPIC_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
-  NOTE_ALLOWED_PATHS?: string;
+  DOCS_PATH?: string;
   NOTE_EXCLUDED_PATHS?: string;
   NOTE_SHORTCUTS?: string;
   NOTE_ALLOWED_EXTENSIONS?: string;
@@ -25,7 +25,6 @@ export interface CloudflareEnv {
   NIGHTLY_CRON?: string;
   TIMEZONE?: string;
   SUMMARY_MAX_DAYS?: string;
-  SQUASH_ENABLED?: string;
   SUMMARY_LANGUAGE?: string;
   LOG_LEVEL?: string;
   RATE_LIMIT_PER_MIN?: string;
@@ -84,11 +83,11 @@ export function loadCFConfig(env: CloudflareEnv): Config {
       defaultBranch: env.GITHUB_DEFAULT_BRANCH ?? 'main',
     },
     note: {
-      allowedPaths: (env.NOTE_ALLOWED_PATHS ?? 'docs')
+      allowedPaths: (env.DOCS_PATH ?? 'docs')
         .split(',').map(s => s.trim()).filter(Boolean),
       excludedPaths: buildExcludedPaths(
         env.NOTE_EXCLUDED_PATHS ?? '',
-        env.NOTE_ALLOWED_PATHS ?? 'docs',
+        env.DOCS_PATH ?? 'docs',
         env.MEETING_NOTES_FOLDER ?? 'meetings',
       ),
       shortcuts: parseShortcuts(env.NOTE_SHORTCUTS ?? ''),
@@ -111,7 +110,6 @@ export function loadCFConfig(env: CloudflareEnv): Config {
     },
     behavior: {
       summaryMaxDays: parseInt(env.SUMMARY_MAX_DAYS ?? '7', 10),
-      squashEnabled: env.SQUASH_ENABLED !== 'false',
       summaryLanguage: env.SUMMARY_LANGUAGE ?? 'en',
       logLevel: env.LOG_LEVEL ?? 'info',
       rateLimitPerMin: parseInt(env.RATE_LIMIT_PER_MIN ?? '10', 10),

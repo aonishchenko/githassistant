@@ -45,7 +45,7 @@ export async function getTranscriptDate(
 
 const TG_MAX_CHARS = 4000;
 
-async function sendLong(text: string, replyText: (t: string) => Promise<void>): Promise<void> {
+export async function sendLong(text: string, replyText: (t: string) => Promise<void>): Promise<void> {
   if (text.length <= TG_MAX_CHARS) {
     await replyText(text);
     return;

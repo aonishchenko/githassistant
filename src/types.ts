@@ -32,7 +32,6 @@ export interface Config {
   };
   behavior: {
     summaryMaxDays: number;
-    squashEnabled: boolean;
     summaryLanguage: string;
     logLevel: string;
     rateLimitPerMin: number;
@@ -122,7 +121,3 @@ export interface GitHubCommit {
   parentShas: string[];
 }
 
-export interface AuthorCommitGroup {
-  authorLogin: string;
-  commits: GitHubCommit[];
-}

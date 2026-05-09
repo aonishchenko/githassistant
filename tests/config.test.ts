@@ -67,7 +67,6 @@ describe('loadConfig', () => {
     expect(config.note.allowedPaths).toEqual(['docs']);
     expect(config.note.allowedExtensions).toEqual(['md', 'txt']);
     expect(config.behavior.summaryMaxDays).toBe(7);
-    expect(config.behavior.squashEnabled).toBe(true);
     expect(config.ai.anthropicModel).toBe('claude-sonnet-4-5');
     expect(config.meeting.notesFolder).toBe('meetings');
   });

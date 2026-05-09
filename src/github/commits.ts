@@ -32,6 +32,27 @@ export async function fetchCommits(
   }));
 }
 
+export interface CommitFilePatch {
+  filename: string;
+  patch: string;
+}
+
+export async function fetchCommitPatches(
+  octokit: Octokit,
+  config: Config,
+  sha: string,
+  pathFilter?: (filename: string) => boolean,
+): Promise<CommitFilePatch[]> {
+  const { data } = await octokit.repos.getCommit({
+    owner: config.github.owner,
+    repo: config.github.repo,
+    ref: sha,
+  });
+  return (data.files ?? [])
+    .filter(f => f.patch && (!pathFilter || pathFilter(f.filename)))
+    .map(f => ({ filename: f.filename, patch: f.patch! }));
+}
+
 export async function fetchCommitFiles(
   octokit: Octokit,
   config: Config,

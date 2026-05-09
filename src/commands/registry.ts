@@ -4,8 +4,8 @@ import type { MessagingAdapter, Config, AIProvider, CommandPlugin, AdapterContex
 import { createHelpPlugin } from './help.js';
 import { createNotePlugin } from './note.js';
 import { createSummaryPlugin } from './summary.js';
-import { createSquashPlugin } from './squash.js';
 import { createMeetingSummaryPlugin } from './meeting-summary.js';
+import { createChangesPlugin } from './changes.js';
 
 export function registerCommands(
   adapter: MessagingAdapter,
@@ -24,8 +24,8 @@ export function registerCommands(
   const { plugin: summaryPlugin } = createSummaryPlugin(octokit, config, aiProvider, log);
   adapter.onCommand(summaryPlugin.command, summaryPlugin.handler);
 
-  const squashPlugin = createSquashPlugin(octokit, config);
-  adapter.onCommand(squashPlugin.command, withAuth(squashPlugin, adapter));
+  const changesPlugin = createChangesPlugin(octokit, config, log);
+  adapter.onCommand(changesPlugin.command, changesPlugin.handler);
 
   const { plugin: meetingPlugin, callbackHandler: meetingCallback } =
     createMeetingSummaryPlugin(octokit, config, aiProvider, log);

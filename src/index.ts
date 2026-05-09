@@ -4,7 +4,6 @@ import { getOctokit } from './github/client.js';
 import { createAIProvider } from './ai/provider.js';
 import { TelegramAdapter } from './messaging/telegram/index.js';
 import { registerCommands } from './commands/registry.js';
-import { createSquashJob } from './jobs/squash.js';
 import { createDailySummaryJob } from './jobs/dailySummary.js';
 import { startScheduler } from './jobs/scheduler.js';
 
@@ -19,9 +18,8 @@ const adapter = new TelegramAdapter(config, log);
 
 registerCommands(adapter, octokit, config, aiProvider, log);
 
-const squashJob = createSquashJob(octokit, config, adapter);
 const dailySummaryJob = createDailySummaryJob(octokit, config, adapter, aiProvider, log);
-startScheduler([squashJob, dailySummaryJob], config.scheduler.nightlyCron, log);
+startScheduler([dailySummaryJob], config.scheduler.nightlyCron, log);
 
 await adapter.start();
 log.info('Bot is running.');

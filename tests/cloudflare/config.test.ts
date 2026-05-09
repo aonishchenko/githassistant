@@ -28,7 +28,6 @@ describe('loadCFConfig', () => {
     expect(config.note.allowedPaths).toEqual(['docs']);
     expect(config.ai.provider).toBe('openai');
     expect(config.behavior.summaryMaxDays).toBe(7);
-    expect(config.behavior.squashEnabled).toBe(true);
     expect(config.scheduler.nightlyCron).toBe('0 2 * * *');
   });
 

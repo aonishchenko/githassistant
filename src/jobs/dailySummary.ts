@@ -5,7 +5,7 @@ import { fetchCommits, fetchCommitDiff } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
-import { buildTodayWindow, buildYesterdayWindow, type SquashWindow } from './squash.js';
+import { buildTodayWindow, buildYesterdayWindow, type TimeWindow } from './timeWindow.js';
 
 export function createDailySummaryJob(
   octokit: Octokit,
@@ -13,7 +13,7 @@ export function createDailySummaryJob(
   adapter: MessagingAdapter,
   aiProvider: AIProvider,
   log: Logger,
-  buildWindow: () => SquashWindow = () => buildTodayWindow(config.scheduler.timezone),
+  buildWindow: () => TimeWindow = () => buildTodayWindow(config.scheduler.timezone),
 ): JobPlugin {
   return {
     name: 'dailySummary',

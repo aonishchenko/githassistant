@@ -9,6 +9,7 @@ dist/
 
 # Cloudflare infra IDs (keep wrangler.toml.example committed)
 wrangler.toml
+.wrangler/
 
 # Test coverage
 coverage/

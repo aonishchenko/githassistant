@@ -5,7 +5,6 @@ import { loadCFConfig, type CloudflareEnv } from './config.js';
 import { CloudflareAdapter, type TelegramUpdate } from './adapter.js';
 import { createAIProvider } from '../../ai/provider.js';
 import { registerCommands, withAuth } from '../../commands/registry.js';
-import { createSquashJob } from '../../jobs/squash.js';
 import { createDailySummaryJob } from '../../jobs/dailySummary.js';
 import { createMeetingScanJob, processMeetingScanMessage, type MeetingScanMessage } from '../../jobs/meetingScan.js';
 import { createD1UsageTracker } from './d1-tracker.js';
@@ -81,9 +80,6 @@ export default {
 
     if (event.cron === NIGHTLY_CRON) {
       await createDailySummaryJob(octokit, config, adapter, aiProvider, log).handler();
-      if (config.behavior.squashEnabled) {
-        await createSquashJob(octokit, config, adapter, log).handler();
-      }
     }
 
     if (event.cron === MEETING_SCAN_CRON) {
