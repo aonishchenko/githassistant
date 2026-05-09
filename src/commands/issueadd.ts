@@ -1,7 +1,7 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
 import type { Config, AIProvider, CommandPlugin, UsageContext } from '../types.js';
-import { listLabels, listOpenIssues, createIssue } from '../github/issues.js';
+import { listLabels, listOpenIssues, createIssue, findRepoProject, addIssueToProject } from '../github/issues.js';
 import { assignLabels } from '../ai/skills/labels.js';
 
 export function createIssueAddPlugin(
@@ -54,27 +54,44 @@ export function createIssueAddPlugin(
       const usageCtx: UsageContext = { trigger: 'issueadd', username: ctx.username };
       const assignedLabels = await assignLabels(aiProvider, toCreate, labels, usageCtx);
 
-      const created: { number: number; title: string; label: string | null }[] = [];
+      const created: { number: number; nodeId: string; title: string; label: string | null }[] = [];
       const failed: string[] = [];
 
       for (let i = 0; i < toCreate.length; i++) {
         try {
-          const number = await createIssue(octokit, config, {
+          const { number, nodeId } = await createIssue(octokit, config, {
             title: toCreate[i],
             assignee,
             label: assignedLabels[i],
           });
-          created.push({ number, title: toCreate[i], label: assignedLabels[i] });
+          created.push({ number, nodeId, title: toCreate[i], label: assignedLabels[i] });
         } catch (err) {
           log.error({ err, title: toCreate[i] }, 'issueadd: failed to create issue');
           failed.push(toCreate[i]);
         }
       }
 
+      let projectTitle: string | null = null;
+      if (created.length > 0) {
+        try {
+          const project = await findRepoProject(octokit, config);
+          if (project) {
+            projectTitle = project.title;
+            await Promise.all(
+              created.map(issue => addIssueToProject(octokit, project.id, issue.nodeId)),
+            );
+            log.info({ projectTitle, count: created.length }, 'issueadd: added issues to project');
+          }
+        } catch (err) {
+          log.warn({ err }, 'issueadd: failed to add issues to project (issues were still created)');
+        }
+      }
+
       const lines_out: string[] = [];
 
       if (created.length > 0) {
-        lines_out.push(`✅ Created ${created.length} issue(s) assigned to @${assignee}:`);
+        const projectNote = projectTitle ? ` and added to "${projectTitle}"` : '';
+        lines_out.push(`✅ Created ${created.length} issue(s) assigned to @${assignee}${projectNote}:`);
         for (const issue of created) {
           const labelTag = issue.label ? ` [${issue.label}]` : '';
           lines_out.push(`- #${issue.number} ${issue.title}${labelTag}`);
