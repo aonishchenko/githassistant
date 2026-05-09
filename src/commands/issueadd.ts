@@ -77,9 +77,9 @@ export function createIssueAddPlugin(
           const project = await findRepoProject(octokit, config);
           if (project) {
             projectTitle = project.title;
-            await Promise.all(
-              created.map(issue => addIssueToProject(octokit, project.id, issue.nodeId)),
-            );
+            for (const issue of created) {
+              await addIssueToProject(octokit, project.id, issue.nodeId);
+            }
             log.info({ projectTitle, count: created.length }, 'issueadd: added issues to project');
           }
         } catch (err) {
