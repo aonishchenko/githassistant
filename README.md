@@ -155,14 +155,24 @@ The transcript picker includes `.md`, `.txt`, and extensionless files. Files con
 
 Period filtering uses dates embedded in the filename — both hyphen (`2026-04-28`) and underscore (`2026_04_28`) formats are recognised. Falls back to the file's git creation date if no date is found in the name.
 
-## Nightly Jobs
+## Scheduled Jobs
 
-Both jobs run automatically at `NIGHTLY_CRON` (default 23:30 UTC). The daily summary runs first (against today's commits), then squash runs on the same day's window:
+### Nightly (23:30 UTC)
+
+Both jobs run in sequence:
 
 - **Daily summary** — posts a per-author AI narrative digest of today's commits to the group; runs before squash so it sees real commit messages
 - **Squash** — merges consecutive same-author commits from today into one commit per run on `GITHUB_DEFAULT_BRANCH`; skips any existing `daily(@` squash commits to avoid double-squashing
 
 Set `SQUASH_ENABLED=false` to disable squash while keeping the digest running.
+
+### Meeting scan (every hour, CF only)
+
+Every hour the bot scans `MEETING_NOTES_FOLDER` for transcripts committed since the last scan. Any transcript without a corresponding summary file is automatically summarised and posted to the TG group.
+
+- Last scan timestamp is stored in CF KV (`meeting:last_scan`) so only newly committed transcripts are checked — the full folder is not re-probed on every run
+- On first run the timestamp is `0`, so all existing transcripts without summaries are processed once
+- Uses the same `processFile` logic as `/meetingsummary` — existing summaries are never regenerated
 
 ## Telegram Bot Setup
 

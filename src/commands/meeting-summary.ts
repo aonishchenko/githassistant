@@ -33,7 +33,7 @@ export function isTranscriptFile(filePath: string): boolean {
   return !base.includes('summary');
 }
 
-async function getTranscriptDate(
+export async function getTranscriptDate(
   octokit: Octokit,
   config: Config,
   filePath: string,
@@ -68,7 +68,7 @@ function githubFileUrl(config: Config, filePath: string): string {
   return `https://github.com/${config.github.owner}/${config.github.repo}/blob/${config.github.defaultBranch}/${filePath}`;
 }
 
-async function processFile(
+export async function processFile(
   octokit: Octokit,
   config: Config,
   aiProvider: AIProvider,

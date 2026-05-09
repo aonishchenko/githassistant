@@ -7,9 +7,11 @@ import { createAIProvider } from '../../ai/provider.js';
 import { registerCommands, withAuth } from '../../commands/registry.js';
 import { createSquashJob } from '../../jobs/squash.js';
 import { createDailySummaryJob } from '../../jobs/dailySummary.js';
+import { createMeetingScanJob } from '../../jobs/meetingScan.js';
 import { createD1UsageTracker } from './d1-tracker.js';
 
 const NIGHTLY_CRON = '30 23 * * *';
+const MEETING_SCAN_CRON = '0 * * * *';
 
 function makeLogger(): Logger {
   const fmt = (obj: unknown, msg?: string) => {
@@ -77,6 +79,10 @@ export default {
       if (config.behavior.squashEnabled) {
         await createSquashJob(octokit, config, adapter, log).handler();
       }
+    }
+
+    if (event.cron === MEETING_SCAN_CRON) {
+      await createMeetingScanJob(octokit, config, aiProvider, env.GITHASSISTANT_KV, adapter.sendMessage.bind(adapter), log).handler();
     }
   },
 };
