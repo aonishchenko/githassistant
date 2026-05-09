@@ -36,11 +36,9 @@ export function createMeetingScanJob(
         if (d && d.getTime() >= lastScanTs) toProcess.push(f);
       }
 
-      // Update KV before enqueuing — prevents full retry if worker crashes mid-send
-      await kv.put(KV_KEY, String(now));
-
       if (toProcess.length === 0) {
         log.info('meeting scan: no new transcripts');
+        await kv.put(KV_KEY, String(now));
         return;
       }
 
@@ -48,6 +46,8 @@ export function createMeetingScanJob(
       for (const transcriptPath of toProcess) {
         await queue.send({ type: 'meeting_scan', transcriptPath } satisfies MeetingScanMessage);
       }
+
+      await kv.put(KV_KEY, String(now));
       log.info({ count: toProcess.length }, 'meeting scan job completed');
     },
   };
