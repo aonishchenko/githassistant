@@ -7,6 +7,9 @@ dist/
 .env.*
 !.env.example
 
+# Cloudflare infra IDs (keep wrangler.toml.example committed)
+wrangler.toml
+
 # Test coverage
 coverage/
 

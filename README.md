@@ -238,18 +238,25 @@ npm install -g wrangler
 # 2. Authenticate with your Cloudflare account
 wrangler login
 
-# 3. Create the KV namespace for callback state
-wrangler kv namespace create GITHASSISTANT_KV
-# Copy the returned `id` value into wrangler.toml → kv_namespaces[0].id
+# 3. Copy the config template and fill in your infra IDs
+cp wrangler.toml.example wrangler.toml
+```
 
-# 4. Create the D1 database for AI usage tracking
+`wrangler.toml` is git-ignored — it holds your specific resource IDs and must never be committed.
+
+```bash
+# 4. Create the KV namespace for callback state
+wrangler kv namespace create GITHASSISTANT_KV
+# Copy the returned `id` into wrangler.toml → kv_namespaces[0].id
+
+# 5. Create the D1 database for AI usage tracking
 wrangler d1 create githassistant-db
 # Copy the returned `database_id` into wrangler.toml → d1_databases[0].database_id
 
-# 5. Run the database migration
-wrangler d1 execute githassistant-db --file=migrations/0001_ai_usage.sql
+# 6. Run the database migration against the remote database
+wrangler d1 execute githassistant-db --remote --file=migrations/0001_ai_usage.sql
 
-# 6. Set required secrets (you will be prompted to type each value)
+# 7. Set required secrets (you will be prompted to type each value)
 wrangler secret put TELEGRAM_BOT_TOKEN
 wrangler secret put TELEGRAM_GROUP_ID
 wrangler secret put GITHUB_TOKEN
@@ -261,10 +268,10 @@ wrangler secret put ANTHROPIC_API_KEY   # or OPENAI_API_KEY + AI_PROVIDER=openai
 wrangler secret put TELEGRAM_ALLOWED_USERS   # comma-separated usernames
 wrangler secret put AI_PROVIDER              # anthropic or openai
 
-# 5. Deploy
+# 8. Deploy
 npm run cf:deploy
 
-# 6. Register the Telegram webhook (one-time, re-run after URL changes)
+# 9. Register the Telegram webhook (one-time, re-run after URL changes)
 CF_WORKER_URL=https://githassistant.<your-subdomain>.workers.dev npm run cf:register-webhook
 ```
 
