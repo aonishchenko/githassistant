@@ -2,8 +2,8 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
 import type { Config, AIProvider, JobPlugin, SendOptions, UsageContext } from '../types.js';
-import { listFiles } from '../github/files.js';
-import { isTranscriptFile, getTranscriptDate, processFile } from '../commands/meeting-summary.js';
+import { listFiles, getFileCreationDate } from '../github/files.js';
+import { isTranscriptFile, processFile } from '../commands/meeting-summary.js';
 
 const KV_KEY = 'meeting:last_scan';
 
@@ -32,7 +32,7 @@ export function createMeetingScanJob(
 
       const toProcess: string[] = [];
       for (const f of transcripts) {
-        const d = await getTranscriptDate(octokit, config, f);
+        const d = await getFileCreationDate(octokit, config, f);
         if (d && d.getTime() >= lastScanTs) toProcess.push(f);
       }
 
