@@ -49,12 +49,23 @@ export function createDailySummaryJob(
         authorDiffs.set(commit.authorLogin, existing);
       }
 
+      const { aiInputTruncateChars, aiCallDelayMs } = config.behavior;
       const cronCtx: UsageContext = { trigger: 'cron:daily', username: 'cron' };
       const authorSummaries: AuthorSummary[] = [];
-      for (const [authorLogin, diffs] of authorDiffs.entries()) {
+      const authorEntries = [...authorDiffs.entries()];
+      for (let i = 0; i < authorEntries.length; i++) {
+        const [authorLogin, diffs] = authorEntries[i];
+        if (i > 0 && aiCallDelayMs > 0) {
+          await new Promise(resolve => setTimeout(resolve, aiCallDelayMs));
+        }
+        let combined = diffs.join('\n\n');
+        if (aiInputTruncateChars !== null && combined.length > aiInputTruncateChars) {
+          combined = combined.slice(0, aiInputTruncateChars);
+          log.warn({ authorLogin, original: diffs.join('\n\n').length, truncated: aiInputTruncateChars }, 'AI input truncated');
+        }
         let summary: string;
         try {
-          summary = await summariseAuthorDiffs(aiProvider, diffs, config.behavior.summaryLanguage, authorLogin, cronCtx);
+          summary = await summariseAuthorDiffs(aiProvider, [combined], config.behavior.summaryLanguage, authorLogin, cronCtx);
         } catch (err) {
           log.error({ err, authorLogin }, 'AI summarisation failed');
           summary = commits

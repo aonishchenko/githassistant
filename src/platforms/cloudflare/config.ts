@@ -28,6 +28,8 @@ export interface CloudflareEnv {
   SUMMARY_LANGUAGE?: string;
   LOG_LEVEL?: string;
   RATE_LIMIT_PER_MIN?: string;
+  AI_INPUT_TRUNCATE_CHARS?: string;
+  AI_CALL_DELAY_MS?: string;
 }
 
 function buildExcludedPaths(rawExcluded: string, rawAllowed: string, meetingFolder: string): string[] {
@@ -113,6 +115,9 @@ export function loadCFConfig(env: CloudflareEnv): Config {
       summaryLanguage: env.SUMMARY_LANGUAGE ?? 'en',
       logLevel: env.LOG_LEVEL ?? 'info',
       rateLimitPerMin: parseInt(env.RATE_LIMIT_PER_MIN ?? '10', 10),
+      aiInputTruncateChars: env.AI_INPUT_TRUNCATE_CHARS
+        ? parseInt(env.AI_INPUT_TRUNCATE_CHARS, 10) : null,
+      aiCallDelayMs: parseInt(env.AI_CALL_DELAY_MS ?? '10000', 10),
     },
   };
 }

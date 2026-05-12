@@ -35,6 +35,8 @@ export interface Config {
     summaryLanguage: string;
     logLevel: string;
     rateLimitPerMin: number;
+    aiInputTruncateChars: number | null;
+    aiCallDelayMs: number;
   };
 }
 

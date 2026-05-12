@@ -86,6 +86,9 @@ export function loadConfig(): Config {
       summaryLanguage: process.env.SUMMARY_LANGUAGE ?? 'en',
       logLevel: process.env.LOG_LEVEL ?? 'info',
       rateLimitPerMin: parseInt(process.env.RATE_LIMIT_PER_MIN ?? '10', 10),
+      aiInputTruncateChars: process.env.AI_INPUT_TRUNCATE_CHARS
+        ? parseInt(process.env.AI_INPUT_TRUNCATE_CHARS, 10) : null,
+      aiCallDelayMs: parseInt(process.env.AI_CALL_DELAY_MS ?? '10000', 10),
     },
   };
 }
