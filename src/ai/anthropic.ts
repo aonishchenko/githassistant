@@ -8,7 +8,7 @@ export class AnthropicProvider implements AIProvider {
   private tracker?: UsageTracker;
 
   constructor(config: Config, tracker?: UsageTracker) {
-    this.client = new Anthropic({ apiKey: config.ai.anthropicApiKey });
+    this.client = new Anthropic({ apiKey: config.ai.anthropicApiKey, maxRetries: 4 });
     this.model = config.ai.anthropicModel;
     this.tracker = tracker;
   }
