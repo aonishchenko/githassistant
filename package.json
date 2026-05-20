@@ -18,7 +18,7 @@
     "cf:register-webhook": "tsx scripts/register-webhook.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.96.0",
+    "@anthropic-ai/sdk": "^0.97.1",
     "@octokit/rest": "^22.0.1",
     "dotenv": "^17.4.2",
     "node-cron": "^4.2.1",
