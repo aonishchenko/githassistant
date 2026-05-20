@@ -28,6 +28,10 @@ max_retries = 2
 [ai]
 binding = "AI"
 
+[vars]
+# Cloudflare Workers AI model to use when no ANTHROPIC_API_KEY or OPENAI_API_KEY is set.
+CF_AI_MODEL = "@cf/moonshotai/kimi-k2.6"
+
 [observability.logs]
 enabled = true
 invocation_logs = true
