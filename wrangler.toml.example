@@ -29,8 +29,38 @@ max_retries = 2
 binding = "AI"
 
 [vars]
-# Cloudflare Workers AI model to use when no ANTHROPIC_API_KEY or OPENAI_API_KEY is set.
+# --- Project (replace with your values) ---
+TELEGRAM_GROUP_ID = "REPLACE_WITH_TELEGRAM_GROUP_ID"
+TELEGRAM_ALLOWED_USERS = ""
+GITHUB_OWNER = "REPLACE_WITH_GITHUB_OWNER"
+GITHUB_REPO = "REPLACE_WITH_GITHUB_REPO"
+GITHUB_DEFAULT_BRANCH = "main"
+
+# --- AI ---
+# AI_PROVIDER is auto-detected: anthropic → openai → cloudflare (CF Workers AI)
+# Uncomment to override: AI_PROVIDER = "anthropic"
+ANTHROPIC_MODEL = "claude-sonnet-4-5"
+OPENAI_MODEL = "gpt-5.3"
 CF_AI_MODEL = "@cf/moonshotai/kimi-k2.6"
+
+# --- Notes ---
+DOCS_PATH = "docs"
+MEETING_NOTES_FOLDER = "meetings"
+NOTE_ALLOWED_EXTENSIONS = "md,txt"
+NOTE_EXCLUDED_PATHS = ""
+NOTE_SHORTCUTS = ""
+
+# --- Scheduler ---
+NIGHTLY_CRON = "0 2 * * *"
+TIMEZONE = "UTC"
+
+# --- Behaviour ---
+SUMMARY_MAX_DAYS = "7"
+SUMMARY_LANGUAGE = "en"
+LOG_LEVEL = "info"
+RATE_LIMIT_PER_MIN = "10"
+AI_CALL_DELAY_MS = "10000"
+# AI_INPUT_TRUNCATE_CHARS = "80000"
 
 [observability.logs]
 enabled = true
