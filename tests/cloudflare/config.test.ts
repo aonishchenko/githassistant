@@ -26,7 +26,7 @@ describe('loadCFConfig', () => {
     const config = loadCFConfig(baseEnv);
     expect(config.github.defaultBranch).toBe('main');
     expect(config.note.allowedPaths).toEqual(['docs']);
-    expect(config.ai.provider).toBe('openai');
+    expect(config.ai.provider).toBe('cloudflare');
     expect(config.behavior.summaryMaxDays).toBe(7);
     expect(config.scheduler.nightlyCron).toBe('0 2 * * *');
   });
