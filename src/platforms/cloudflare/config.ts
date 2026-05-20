@@ -102,7 +102,7 @@ export function loadCFConfig(env: CloudflareEnv): Config {
       notesFolder: env.MEETING_NOTES_FOLDER ?? 'meetings',
     },
     ai: {
-      provider: env.AI_PROVIDER ?? (env.ANTHROPIC_API_KEY ? 'anthropic' : env.OPENAI_API_KEY ? 'openai' : 'cloudflare'),
+      provider: env.AI_PROVIDER || (env.ANTHROPIC_API_KEY ? 'anthropic' : env.OPENAI_API_KEY ? 'openai' : 'cloudflare'),
       anthropicApiKey: env.ANTHROPIC_API_KEY ?? '',
       anthropicModel: env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
       openaiApiKey: env.OPENAI_API_KEY ?? '',

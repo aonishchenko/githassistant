@@ -12,15 +12,32 @@ import { createD1UsageTracker } from './d1-tracker.js';
 const NIGHTLY_CRON = '30 23 * * *';
 const MEETING_SCAN_CRON = '0 * * * *';
 
+function serializeError(err: unknown): object {
+  if (err instanceof Error) return { errMessage: err.message, errStack: err.stack };
+  return { err: String(err) };
+}
+
 function makeLogger(): Logger {
   const fmt = (obj: unknown, msg?: string) => {
     if (typeof obj === 'string') { console.info(obj); return; }
-    console.info(JSON.stringify({ msg, ...(obj as object) }));
+    const { err, ...rest } = obj as Record<string, unknown>;
+    const errFields = err !== undefined ? serializeError(err) : {};
+    console.info(JSON.stringify({ msg, ...rest, ...errFields }));
   };
   return {
     info: fmt,
-    warn: (obj: unknown, msg?: string) => console.warn(typeof obj === 'string' ? obj : JSON.stringify({ msg, ...(obj as object) })),
-    error: (obj: unknown, msg?: string) => console.error(typeof obj === 'string' ? obj : JSON.stringify({ msg, ...(obj as object) })),
+    warn: (obj: unknown, msg?: string) => {
+      if (typeof obj === 'string') { console.warn(obj); return; }
+      const { err, ...rest } = obj as Record<string, unknown>;
+      const errFields = err !== undefined ? serializeError(err) : {};
+      console.warn(JSON.stringify({ msg, ...rest, ...errFields }));
+    },
+    error: (obj: unknown, msg?: string) => {
+      if (typeof obj === 'string') { console.error(obj); return; }
+      const { err, ...rest } = obj as Record<string, unknown>;
+      const errFields = err !== undefined ? serializeError(err) : {};
+      console.error(JSON.stringify({ msg, ...rest, ...errFields }));
+    },
     child: () => makeLogger(),
   } as unknown as Logger;
 }
