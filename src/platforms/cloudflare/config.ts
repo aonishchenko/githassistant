@@ -5,6 +5,7 @@ export interface CloudflareEnv {
   GITHASSISTANT_KV: KVNamespace;
   BOT_QUEUE: Queue;
   GITHASSISTANT_DB?: D1Database;
+  AI?: Ai;
   TELEGRAM_BOT_TOKEN: string;
   TELEGRAM_GROUP_ID: string;
   TELEGRAM_ALLOWED_USERS?: string;
@@ -17,6 +18,7 @@ export interface CloudflareEnv {
   ANTHROPIC_MODEL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
+  CF_AI_MODEL?: string;
   DOCS_PATH?: string;
   NOTE_EXCLUDED_PATHS?: string;
   NOTE_SHORTCUTS?: string;
@@ -100,11 +102,12 @@ export function loadCFConfig(env: CloudflareEnv): Config {
       notesFolder: env.MEETING_NOTES_FOLDER ?? 'meetings',
     },
     ai: {
-      provider: env.AI_PROVIDER ?? (env.ANTHROPIC_API_KEY ? 'anthropic' : 'openai'),
+      provider: env.AI_PROVIDER ?? (env.ANTHROPIC_API_KEY ? 'anthropic' : env.OPENAI_API_KEY ? 'openai' : 'cloudflare'),
       anthropicApiKey: env.ANTHROPIC_API_KEY ?? '',
       anthropicModel: env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
       openaiApiKey: env.OPENAI_API_KEY ?? '',
       openaiModel: env.OPENAI_MODEL ?? 'gpt-5.3',
+      cfAiModel: env.CF_AI_MODEL ?? '@cf/moonshotai/kimi-k2.6',
     },
     scheduler: {
       nightlyCron: env.NIGHTLY_CRON ?? '0 2 * * *',

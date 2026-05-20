@@ -25,6 +25,7 @@ export interface Config {
     anthropicModel: string;
     openaiApiKey: string;
     openaiModel: string;
+    cfAiModel: string;
   };
   scheduler: {
     nightlyCron: string;

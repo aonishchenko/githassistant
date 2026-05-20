@@ -29,7 +29,7 @@ async function buildDeps(env: CloudflareEnv) {
   const config = loadCFConfig(env);
   const octokit = new Octokit({ auth: config.github.token });
   const tracker = env.GITHASSISTANT_DB ? createD1UsageTracker(env.GITHASSISTANT_DB) : undefined;
-  const aiProvider = createAIProvider(config, tracker);
+  const aiProvider = createAIProvider(config, tracker, env.AI);
   const adapter = new CloudflareAdapter(config, env.GITHASSISTANT_KV);
   const log = makeLogger();
   registerCommands(adapter, octokit, config, aiProvider, log);

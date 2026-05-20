@@ -76,6 +76,7 @@ export function loadConfig(): Config {
       anthropicModel: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
       openaiApiKey: process.env.OPENAI_API_KEY ?? '',
       openaiModel: process.env.OPENAI_MODEL ?? 'gpt-5.3',
+      cfAiModel: process.env.CF_AI_MODEL ?? '@cf/moonshotai/kimi-k2.6',
     },
     scheduler: {
       nightlyCron: process.env.NIGHTLY_CRON ?? '0 2 * * *',

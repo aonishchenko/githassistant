@@ -25,6 +25,9 @@ max_batch_size = 1
 max_batch_timeout = 0
 max_retries = 2
 
+[ai]
+binding = "AI"
+
 [observability.logs]
 enabled = true
 invocation_logs = true
