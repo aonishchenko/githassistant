@@ -112,7 +112,7 @@ export function createSummaryPlugin(
         authorSummaries.push({ authorLogin, summary, files });
       }
 
-      await ctx.replyText(formatSummaryMessage(period.label, authorSummaries), { parseMode: 'Markdown' });
+      await ctx.replyText(formatSummaryMessage(period.label, authorSummaries), { parseMode: 'HTML' });
     },
   };
 

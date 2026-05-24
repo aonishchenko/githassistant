@@ -9,16 +9,20 @@ export interface AuthorSummary {
   files: string[];
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
 export function formatSummaryMessage(period: string, summaries: AuthorSummary[]): string {
   if (summaries.length === 0) return `No commits found in the ${period}.`;
 
-  const lines = [`📋 *Project summary — ${period}*`];
+  const lines = [`📋 <b>Project summary — ${escapeHtml(period)}</b>`];
   for (const { authorLogin, summary, files } of summaries) {
-    lines.push('', `👤 *@${authorLogin}*`, summary);
+    lines.push('', `👤 <b>@${escapeHtml(authorLogin)}</b>`, escapeHtml(summary));
     if (files.length > 0) {
-      const shown = files.slice(0, 10).map(f => `• \`${f}\``);
+      const shown = files.slice(0, 10).map(f => `• <code>${escapeHtml(f)}</code>`);
       if (files.length > 10) {
-        shown.push(`_…and ${files.length - 10} more (${files.length} files total)_`);
+        shown.push(`<i>…and ${files.length - 10} more (${files.length} files total)</i>`);
       }
       lines.push('', ...shown);
     }

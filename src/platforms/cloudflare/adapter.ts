@@ -52,11 +52,16 @@ export class CloudflareAdapter implements MessagingAdapter {
   }
 
   private async telegramPost(method: string, body: object): Promise<Response> {
-    return fetch(`${this.apiBase}/${method}`, {
+    const res = await fetch(`${this.apiBase}/${method}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      console.error(JSON.stringify({ msg: 'telegram API error', method, status: res.status, body: text }));
+    }
+    return res;
   }
 
   async sendMessage(text: string, options?: SendOptions): Promise<void> {

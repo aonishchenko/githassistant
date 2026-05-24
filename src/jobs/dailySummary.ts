@@ -76,7 +76,7 @@ export function createDailySummaryJob(
         authorSummaries.push({ authorLogin, summary, files: [] });
       }
 
-      await adapter.sendMessage(formatSummaryMessage(dateStr, authorSummaries), { parseMode: 'Markdown' });
+      await adapter.sendMessage(formatSummaryMessage(dateStr, authorSummaries), { parseMode: 'HTML' });
       log.info({ dateStr, commitCount: commits.length, authorCount: authorSummaries.length }, 'daily summary job completed');
     },
   };
