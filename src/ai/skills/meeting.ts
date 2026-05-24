@@ -1,6 +1,11 @@
 import type { AIProvider, UsageContext } from '../../types.js';
+import { chunkText } from '../summarise.js';
 
 const MEETING_SUMMARY_MAX_TOKENS = 8192;
+// ~12500 tokens of transcript per chunk, safe for 24k-token context models
+const MEETING_MAX_CHARS = 50_000;
+
+const CHUNK_EXTRACT_PROMPT = `Extract the key points, decisions, and action items from this portion of a meeting transcript. Be concise but thorough — do not omit any decision or action item.`;
 
 const MEETING_SKILL = `# Meeting Transcription Summary Skill
 
@@ -110,5 +115,14 @@ export async function summariseMeeting(
   transcript: string,
   ctx?: UsageContext,
 ): Promise<string> {
-  return provider.summarise(MEETING_SKILL, transcript, MEETING_SUMMARY_MAX_TOKENS, ctx);
+  if (transcript.length <= MEETING_MAX_CHARS) {
+    return provider.summarise(MEETING_SKILL, transcript, MEETING_SUMMARY_MAX_TOKENS, ctx);
+  }
+
+  // Transcript too large for a single call — extract from each chunk then consolidate
+  const chunks = chunkText(transcript, MEETING_MAX_CHARS);
+  const extractions = await Promise.all(
+    chunks.map(chunk => provider.summarise(CHUNK_EXTRACT_PROMPT, chunk, 2048, ctx)),
+  );
+  return provider.summarise(MEETING_SKILL, extractions.join('\n\n---\n\n'), MEETING_SUMMARY_MAX_TOKENS, ctx);
 }
