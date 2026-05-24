@@ -20,10 +20,11 @@ export class CloudflareAIProvider implements AIProvider {
     this.model = config.ai.cfAiModel;
   }
 
-  async summarise(prompt: string, content: string, maxTokens = 1024): Promise<string> {
+  async summarise(prompt: string, content: string): Promise<string> {
+    // max_tokens intentionally omitted — reasoning models (kimi-k2, etc.) consume
+    // explicit token caps entirely on internal thinking, leaving content: null.
     const result = await this.binding.run(this.model, {
       messages: [{ role: 'user', content: `${prompt}\n\n${content}` }],
-      max_tokens: maxTokens,
     });
     if (result instanceof ReadableStream) throw new Error('Unexpected streaming response from CF AI');
 

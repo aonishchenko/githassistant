@@ -107,7 +107,7 @@ export function loadCFConfig(env: CloudflareEnv): Config {
       anthropicModel: env.ANTHROPIC_MODEL ?? 'claude-sonnet-4-5',
       openaiApiKey: env.OPENAI_API_KEY ?? '',
       openaiModel: env.OPENAI_MODEL ?? 'gpt-5.3',
-      cfAiModel: env.CF_AI_MODEL ?? '@cf/moonshotai/kimi-k2.6',
+      cfAiModel: env.CF_AI_MODEL ?? '@cf/meta/llama-3.3-70b-instruct-fp8-fast',
     },
     scheduler: {
       nightlyCron: env.NIGHTLY_CRON ?? '0 2 * * *',

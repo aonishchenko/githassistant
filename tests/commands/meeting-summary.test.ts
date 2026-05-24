@@ -185,6 +185,8 @@ describe('/meeting-summary <filename> — single file', () => {
 
 describe('/meeting-summary <period>', () => {
   it('processes files whose filename date falls within the period', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-04-29T12:00:00Z'));
     const getContent = vi.fn()
       .mockResolvedValueOnce({ data: [
         { type: 'file', path: 'meetings/2026-04-28-standup-transcript.md' },
@@ -198,6 +200,7 @@ describe('/meeting-summary <period>', () => {
     );
     const ctx = makeCtx('2026-04-24');
     await plugin.handler(ctx);
+    vi.useRealTimers();
     expect(createOrUpdate).toHaveBeenCalledTimes(1);
     expect(createOrUpdate).toHaveBeenCalledWith(
       expect.objectContaining({ path: 'meetings/2026-04-28-standup-summary.md' }),
