@@ -18,6 +18,18 @@ function parseShortcuts(raw: string): Record<string, string> {
   return result;
 }
 
+function parseAutoIssueOwners(
+  names: string | undefined,
+  logins: string | undefined,
+): Array<{ name: string; login: string }> {
+  if (!names || !logins) return [];
+  const nameList = names.split(',').map(s => s.trim()).filter(Boolean);
+  const loginList = logins.split(',').map(s => s.trim()).filter(Boolean);
+  return nameList
+    .map((name, i) => ({ name, login: loginList[i] ?? '' }))
+    .filter(({ login }) => !!login);
+}
+
 function buildExcludedPaths(rawExcluded: string, rawAllowed: string, meetingFolder: string): string[] {
   const explicit = rawExcluded.split(',').map(s => s.trim()).filter(Boolean);
   const allowedPaths = rawAllowed.split(',').map(s => s.trim()).filter(Boolean);
@@ -68,6 +80,10 @@ export function loadConfig(): Config {
     },
     meeting: {
       notesFolder: process.env.MEETING_NOTES_FOLDER ?? 'meetings',
+      autoIssueOwners: parseAutoIssueOwners(
+        process.env.AUTO_CREATED_ISSUE_FOR_OWNER_NAMES,
+        process.env.AUTO_CREATED_ISSUE_FOR_GITHUBNAMES,
+      ),
     },
     ai: {
       provider: process.env.AI_PROVIDER

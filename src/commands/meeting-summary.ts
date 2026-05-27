@@ -4,6 +4,7 @@ import type { Logger } from 'pino';
 import type { Config, AIProvider, CommandPlugin, CallbackHandler, SendOptions, UsageContext } from '../types.js';
 import { getFile, writeFile, listFiles, getFileCreationDate } from '../github/files.js';
 import { summariseMeeting } from '../ai/skills/meeting.js';
+import { autoIssueFromSummary } from '../github/autoIssue.js';
 import { parsePeriod } from './summary.js';
 
 export function buildSummaryFilename(transcriptPath: string): string {
@@ -105,6 +106,20 @@ export async function processFile(
       { parseMode: 'HTML' as const },
     );
     await sendLong(summary, replyText);
+
+    if (config.meeting.autoIssueOwners.length > 0) {
+      try {
+        const created = await autoIssueFromSummary(summary, config, octokit, aiProvider, log, usageCtx ?? { trigger: 'meetingsummary', username });
+        if (created.length > 0) {
+          await replyText(
+            `🎫 Auto-created ${created.length} issue(s) from action items:\n` +
+            created.map(i => `• #${i.number} @${i.login} — ${i.title}`).join('\n'),
+          );
+        }
+      } catch (err) {
+        log.error({ err }, 'autoIssue: unexpected error during auto-issue creation');
+      }
+    }
   } else {
     log.info({ summaryPath }, 'summary already exists, skipping AI generation');
     if (!silentIfExists) {

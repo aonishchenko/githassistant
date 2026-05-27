@@ -15,7 +15,7 @@ const config: Config = {
   ai: { provider: 'anthropic', anthropicApiKey: '', anthropicModel: '', openaiApiKey: '', openaiModel: '' },
   scheduler: { nightlyCron: '', timezone: 'UTC' },
   behavior: { summaryMaxDays: 30, squashEnabled: true, summaryLanguage: 'en', logLevel: 'info', rateLimitPerMin: 10 },
-  meeting: { notesFolder: 'meetings' },
+  meeting: { notesFolder: 'meetings', autoIssueOwners: [] },
 };
 
 function makeCtx(text: string, overrides: Partial<AdapterContext> = {}): AdapterContext {
