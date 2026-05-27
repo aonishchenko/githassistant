@@ -1,6 +1,6 @@
 import type { AIProvider, UsageContext } from '../types.js';
 
-const MAX_DIFF_CHARS = 12_000;
+const MAX_DIFF_CHARS = 60_000;
 
 export const SUMMARY_PROMPT = (language: string, authorLogin: string): string =>
   `Summarise the following git commits by @${authorLogin} in 2-3 sentences. Be direct and specific: state what was built, fixed, or changed. Do not evaluate the work, add opinions, or suggest reviews. Respond in ${language}.`;

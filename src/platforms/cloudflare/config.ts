@@ -32,6 +32,7 @@ export interface CloudflareEnv {
   RATE_LIMIT_PER_MIN?: string;
   AI_INPUT_TRUNCATE_CHARS?: string;
   AI_CALL_DELAY_MS?: string;
+  DAILY_SUMMARY_MAX_COMMITS?: string;
 }
 
 function buildExcludedPaths(rawExcluded: string, rawAllowed: string, meetingFolder: string): string[] {
@@ -121,6 +122,7 @@ export function loadCFConfig(env: CloudflareEnv): Config {
       aiInputTruncateChars: env.AI_INPUT_TRUNCATE_CHARS
         ? parseInt(env.AI_INPUT_TRUNCATE_CHARS, 10) : null,
       aiCallDelayMs: parseInt(env.AI_CALL_DELAY_MS ?? '10000', 10),
+      dailySummaryMaxCommits: parseInt(env.DAILY_SUMMARY_MAX_COMMITS ?? '25', 10),
     },
   };
 }

@@ -38,6 +38,7 @@ export interface Config {
     rateLimitPerMin: number;
     aiInputTruncateChars: number | null;
     aiCallDelayMs: number;
+    dailySummaryMaxCommits: number;
   };
 }
 

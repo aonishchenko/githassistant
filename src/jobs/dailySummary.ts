@@ -35,8 +35,13 @@ export function createDailySummaryJob(
         return;
       }
 
+      const cappedCommits = commits.slice(0, config.behavior.dailySummaryMaxCommits);
+      if (cappedCommits.length < commits.length) {
+        log.warn({ total: commits.length, cap: cappedCommits.length }, 'daily summary: commit count capped to avoid subrequest limit');
+      }
+
       const authorDiffs = new Map<string, string[]>();
-      for (const commit of commits) {
+      for (const commit of cappedCommits) {
         let diff: string;
         try {
           diff = await fetchCommitDiff(octokit, config, commit.sha);
@@ -68,7 +73,7 @@ export function createDailySummaryJob(
           summary = await summariseAuthorDiffs(aiProvider, [combined], config.behavior.summaryLanguage, authorLogin, cronCtx);
         } catch (err) {
           log.error({ err, authorLogin }, 'AI summarisation failed');
-          summary = commits
+          summary = cappedCommits
             .filter(c => c.authorLogin === authorLogin)
             .map(c => `- ${c.message} (${c.shortSha})`)
             .join('\n') + '\n_(AI summary unavailable)_';
@@ -77,7 +82,7 @@ export function createDailySummaryJob(
       }
 
       await adapter.sendMessage(formatSummaryMessage(dateStr, authorSummaries), { parseMode: 'HTML' });
-      log.info({ dateStr, commitCount: commits.length, authorCount: authorSummaries.length }, 'daily summary job completed');
+      log.info({ dateStr, commitCount: cappedCommits.length, totalCommits: commits.length, authorCount: authorSummaries.length }, 'daily summary job completed');
     },
   };
 }

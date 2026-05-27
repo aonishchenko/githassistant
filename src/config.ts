@@ -90,6 +90,7 @@ export function loadConfig(): Config {
       aiInputTruncateChars: process.env.AI_INPUT_TRUNCATE_CHARS
         ? parseInt(process.env.AI_INPUT_TRUNCATE_CHARS, 10) : null,
       aiCallDelayMs: parseInt(process.env.AI_CALL_DELAY_MS ?? '10000', 10),
+      dailySummaryMaxCommits: parseInt(process.env.DAILY_SUMMARY_MAX_COMMITS ?? '25', 10),
     },
   };
 }
