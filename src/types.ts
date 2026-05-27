@@ -18,6 +18,7 @@ export interface Config {
   };
   meeting: {
     notesFolder: string;
+    autoIssueOwners: Array<{ name: string; login: string }>;
   };
   ai: {
     provider: string;

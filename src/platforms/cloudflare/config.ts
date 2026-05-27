@@ -33,6 +33,20 @@ export interface CloudflareEnv {
   AI_INPUT_TRUNCATE_CHARS?: string;
   AI_CALL_DELAY_MS?: string;
   DAILY_SUMMARY_MAX_COMMITS?: string;
+  AUTO_CREATED_ISSUE_FOR_OWNER_NAMES?: string;
+  AUTO_CREATED_ISSUE_FOR_GITHUBNAMES?: string;
+}
+
+function parseAutoIssueOwners(
+  names: string | undefined,
+  logins: string | undefined,
+): Array<{ name: string; login: string }> {
+  if (!names || !logins) return [];
+  const nameList = names.split(',').map(s => s.trim()).filter(Boolean);
+  const loginList = logins.split(',').map(s => s.trim()).filter(Boolean);
+  return nameList
+    .map((name, i) => ({ name, login: loginList[i] ?? '' }))
+    .filter(({ login }) => !!login);
 }
 
 function buildExcludedPaths(rawExcluded: string, rawAllowed: string, meetingFolder: string): string[] {
@@ -101,6 +115,10 @@ export function loadCFConfig(env: CloudflareEnv): Config {
     },
     meeting: {
       notesFolder: env.MEETING_NOTES_FOLDER ?? 'meetings',
+      autoIssueOwners: parseAutoIssueOwners(
+        env.AUTO_CREATED_ISSUE_FOR_OWNER_NAMES,
+        env.AUTO_CREATED_ISSUE_FOR_GITHUBNAMES,
+      ),
     },
     ai: {
       provider: env.AI_PROVIDER || (env.ANTHROPIC_API_KEY ? 'anthropic' : env.OPENAI_API_KEY ? 'openai' : 'cloudflare'),
