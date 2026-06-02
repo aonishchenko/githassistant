@@ -174,6 +174,42 @@ describe('/meeting-summary <filename> — single file', () => {
     expect(calls.some(t => t.includes('existing summary'))).toBe(true);
   });
 
+  it('auto-creates issues from a pre-existing summary (resilient to redelivery)', async () => {
+    const transcriptContent = Buffer.from('transcript').toString('base64');
+    const summaryMd = [
+      '## Action Items',
+      '',
+      '| # | Owner | Action | Deadline |',
+      '|---|-------|--------|----------|',
+      '| 1 | Potros Abrahim | Reach out to network | ASAP |',
+      '| 2 | TBD | Ignore me | — |',
+    ].join('\n');
+    const summaryContent = Buffer.from(summaryMd).toString('base64');
+    const getContent = vi.fn()
+      .mockResolvedValueOnce({ data: { type: 'file', content: transcriptContent, sha: 'sha1' } })
+      .mockResolvedValueOnce({ data: { type: 'file', content: summaryContent, sha: 'sha2' } });
+    const issuesCreate = vi.fn().mockResolvedValue({ data: { number: 101, node_id: 'NODE1' } });
+    const octokit = {
+      repos: { getContent, createOrUpdateFileContents: vi.fn(), listCommits: vi.fn() },
+      issues: { create: issuesCreate, listLabelsForRepo: vi.fn(), listForRepo: vi.fn() },
+      paginate: vi.fn().mockResolvedValue([]),
+      graphql: vi.fn().mockResolvedValue({ repository: { projectsV2: { nodes: [] } } }),
+    } as unknown as Octokit;
+
+    const autoConfig: Config = {
+      ...config,
+      meeting: { notesFolder: 'meetings', autoIssueOwners: [{ name: 'Potros Abrahim', login: 'potros-bridge' }] },
+    };
+    const { plugin } = createMeetingSummaryPlugin(octokit, autoConfig, mockAI, log);
+    await plugin.handler(makeCtx('2026-04-28-transcript.md'));
+
+    expect(issuesCreate).toHaveBeenCalledTimes(1);
+    expect(issuesCreate).toHaveBeenCalledWith(expect.objectContaining({
+      title: 'Reach out to network',
+      assignees: ['potros-bridge'],
+    }));
+  });
+
   it('replies with file-not-found message when transcript does not exist', async () => {
     const getContent = vi.fn().mockRejectedValue(Object.assign(new Error('Not Found'), { status: 404 }));
     const { plugin } = createMeetingSummaryPlugin(makeOctokit(getContent), config, mockAI, log);
