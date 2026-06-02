@@ -88,47 +88,57 @@ export async function processFile(
 
   const summaryPath = buildSummaryFilename(transcriptPath);
   const existing = await getFile(octokit, config, summaryPath);
-  const content = existing?.content ?? null;
+  const isFresh = !existing?.content;
 
-  if (!content) {
-    let summary: string;
+  let summaryText: string;
+  if (isFresh) {
     try {
-      summary = await summariseMeeting(aiProvider, transcript.content, usageCtx);
+      summaryText = await summariseMeeting(aiProvider, transcript.content, usageCtx);
     } catch (err) {
       log.error({ err, transcriptPath }, 'meeting summarisation failed');
       await replyText(`Failed to generate summary for ${transcriptPath}. Please try again.`);
       return;
     }
     const commitMsg = `summary(@${username}): ${summaryPath}`;
-    await writeFile(octokit, config, summaryPath, summary, commitMsg);
+    await writeFile(octokit, config, summaryPath, summaryText, commitMsg);
+  } else {
+    log.info({ summaryPath }, 'summary already exists, skipping AI generation');
+    summaryText = existing!.content;
+  }
+
+  const deliver = isFresh || !silentIfExists;
+
+  // Share the (cheap) link first so it survives even if a later step is interrupted.
+  if (deliver) {
     await replyText(
       `<a href="${githubFileUrl(config, summaryPath)}">${path.basename(summaryPath)}</a>`,
       { parseMode: 'HTML' as const },
     );
-    await sendLong(summary, replyText);
+  }
 
-    if (config.meeting.autoIssueOwners.length > 0) {
-      try {
-        const created = await autoIssueFromSummary(summary, config, octokit, aiProvider, log, usageCtx ?? { trigger: 'meetingsummary', username });
-        if (created.length > 0) {
-          await replyText(
-            `🎫 Auto-created ${created.length} issue(s) from action items:\n` +
-            created.map(i => `• #${i.number} @${i.login} — ${i.title}`).join('\n'),
-          );
-        }
-      } catch (err) {
-        log.error({ err }, 'autoIssue: unexpected error during auto-issue creation');
-      }
-    }
-  } else {
-    log.info({ summaryPath }, 'summary already exists, skipping AI generation');
-    if (!silentIfExists) {
-      await replyText(
-        `<a href="${githubFileUrl(config, summaryPath)}">${path.basename(summaryPath)}</a>`,
-        { parseMode: 'HTML' as const },
+  // Auto-create issues from action items BEFORE sending the full summary text, so the
+  // durable GitHub side-effect happens first and is not lost if delivery is interrupted.
+  // Runs for both fresh and pre-existing summaries (resilient to queue redelivery) and is
+  // idempotent — autoIssueFromSummary dedups against existing open issues by title.
+  if (config.meeting.autoIssueOwners.length > 0) {
+    try {
+      const created = await autoIssueFromSummary(
+        summaryText, config, octokit, aiProvider, log,
+        usageCtx ?? { trigger: 'meetingsummary', username },
       );
-      await sendLong(content, replyText);
+      if (created.length > 0) {
+        await replyText(
+          `🎫 Auto-created ${created.length} issue(s) from action items:\n` +
+          created.map(i => `• #${i.number} @${i.login} — ${i.title}`).join('\n'),
+        );
+      }
+    } catch (err) {
+      log.error({ err }, 'autoIssue: unexpected error during auto-issue creation');
     }
+  }
+
+  if (deliver) {
+    await sendLong(summaryText, replyText);
   }
 }
 
