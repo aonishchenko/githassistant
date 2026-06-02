@@ -56,19 +56,20 @@ Extract ALL action items from the meeting, scanning every discussion block thoro
 Rules:
 - **Mine every topic for actions.** Even casual mentions like "we should check X" or "someone needs to decide on Y" are action items if they require a follow-up decision, investigation, or implementation.
 - Each action item must be specific and actionable — not vague.
+- **Owner must always be the person's FULL name (first AND last name), exactly as named in the transcript.** Never use a first name alone, a nickname, initials, or a partial name. If a person is referred to by first name in one place but their full name appears anywhere in the transcript, always use the full name. Only fall back to a first name if no full name is ever available. Use the identical full-name spelling consistently across every action item.
 - If no owner is explicitly mentioned, write "TBD" as owner.
 - Include: tasks assigned, decisions that need to be made, things to be researched, features to be designed or implemented, and any commitments made.
 - Sort by urgency: ASAP items first, then by deadline, then TBD.
 
-Format:
+Format (Owner column always uses the full name, e.g. "Joanna Second", never "Joanna"):
 \`\`\`
 ## Action Items
 
-| # | Owner | Action | Deadline |
-|---|-------|--------|----------|
-| 1 | Name  | Do X   | ASAP     |
-| 2 | Name  | Do Y   | Date     |
-| 3 | TBD   | Do Z   | —        |
+| # | Owner          | Action | Deadline |
+|---|----------------|--------|----------|
+| 1 | Firstname Lastname | Do X | ASAP   |
+| 2 | Firstname Lastname | Do Y | Date   |
+| 3 | TBD            | Do Z   | —        |
 \`\`\`
 
 ---
