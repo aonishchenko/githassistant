@@ -66,6 +66,35 @@ export async function fetchCommitFiles(
   return (data.files ?? []).map(f => f.filename);
 }
 
+// Asset / generated files whose raw diff content is useless for an AI summary and
+// pathologically token-dense (SVG path data, minified bundles, lockfiles, fonts).
+const ASSET_FILE_RE = /\.(svg|png|jpe?g|gif|ico|webp|avif|bmp|woff2?|ttf|eot|otf|pdf|mp4|mov|map)$|\.min\.(js|css)$|(^|\/)(package-lock\.json|pnpm-lock\.yaml|yarn\.lock)$/i;
+// Per-file cap so one large (non-asset) file can't dominate or overflow the context window.
+const MAX_PER_FILE_DIFF_CHARS = 8_000;
+
+/**
+ * Trim a raw git diff before sending it to the AI: replace asset/binary file
+ * sections with a one-line stub and truncate any oversized per-file section.
+ * Keeps meaningful code changes while removing token-dense noise.
+ */
+export function filterDiffForSummary(diff: string): string {
+  if (!diff) return diff;
+  const sections = diff.split(/(?=^diff --git )/m);
+  return sections
+    .map(section => {
+      if (!section.startsWith('diff --git ')) return section; // preamble, if any
+      const filename = section.match(/^diff --git a\/(.+?) b\//)?.[1] ?? '';
+      if (filename && ASSET_FILE_RE.test(filename)) {
+        return `diff --git a/${filename} b/${filename}\n[asset/binary file changed — diff omitted]\n`;
+      }
+      if (section.length > MAX_PER_FILE_DIFF_CHARS) {
+        return section.slice(0, MAX_PER_FILE_DIFF_CHARS) + `\n[... diff for ${filename || 'file'} truncated ...]\n`;
+      }
+      return section;
+    })
+    .join('');
+}
+
 export async function fetchCommitDiff(
   octokit: Octokit,
   config: Config,

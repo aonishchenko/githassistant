@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { Octokit } from '@octokit/rest';
 import type { Config } from '../../src/types.js';
-import { fetchCommits, fetchCommitDiff, createCommit, updateBranchRef } from '../../src/github/commits.js';
+import { fetchCommits, fetchCommitDiff, createCommit, updateBranchRef, filterDiffForSummary } from '../../src/github/commits.js';
 
 const config: Config = {
   telegram: { botToken: '', groupId: '', allowedUsers: [] },
@@ -107,5 +107,44 @@ describe('updateBranchRef', () => {
       sha: 'tipshaXYZ',
       force: true,
     }));
+  });
+});
+
+describe('filterDiffForSummary', () => {
+  const svgSection =
+    'diff --git a/public/logo.svg b/public/logo.svg\n' +
+    'new file mode 100644\n--- /dev/null\n+++ b/public/logo.svg\n@@ -0,0 +1 @@\n' +
+    '+<svg>' + 'M12.5 3.2 L14.1 8.9 '.repeat(2000) + '</svg>\n';
+  const codeSection =
+    'diff --git a/src/app.tsx b/src/app.tsx\n--- a/src/app.tsx\n+++ b/src/app.tsx\n' +
+    '@@ -1 +1 @@\n-const a = 1;\n+const a = 2;\n';
+
+  it('stubs asset/binary file diffs', () => {
+    const out = filterDiffForSummary(svgSection + codeSection);
+    expect(out).toContain('[asset/binary file changed — diff omitted]');
+    expect(out).not.toContain('M12.5 3.2');
+    // code section is preserved
+    expect(out).toContain('const a = 2;');
+  });
+
+  it('collapses a huge asset diff to a tiny stub', () => {
+    const out = filterDiffForSummary(svgSection);
+    expect(svgSection.length).toBeGreaterThan(20000);
+    expect(out.length).toBeLessThan(200);
+  });
+
+  it('truncates oversized non-asset file sections', () => {
+    const big = 'diff --git a/src/big.ts b/src/big.ts\n' + 'x'.repeat(20000) + '\n';
+    const out = filterDiffForSummary(big);
+    expect(out.length).toBeLessThan(9000);
+    expect(out).toContain('truncated');
+  });
+
+  it('passes small ordinary diffs through unchanged', () => {
+    expect(filterDiffForSummary(codeSection)).toBe(codeSection);
+  });
+
+  it('handles empty input', () => {
+    expect(filterDiffForSummary('')).toBe('');
   });
 });

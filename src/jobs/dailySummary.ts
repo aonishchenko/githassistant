@@ -1,7 +1,7 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
 import type { Config, MessagingAdapter, AIProvider, JobPlugin, GitHubCommit, UsageContext } from '../types.js';
-import { fetchCommits, fetchCommitDiff } from '../github/commits.js';
+import { fetchCommits, fetchCommitDiff, filterDiffForSummary } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
@@ -44,7 +44,7 @@ export function createDailySummaryJob(
       for (const commit of cappedCommits) {
         let diff: string;
         try {
-          diff = await fetchCommitDiff(octokit, config, commit.sha);
+          diff = filterDiffForSummary(await fetchCommitDiff(octokit, config, commit.sha));
         } catch (err) {
           log.error({ err, sha: commit.shortSha }, 'failed to fetch commit diff');
           diff = `(diff unavailable for ${commit.shortSha})`;
