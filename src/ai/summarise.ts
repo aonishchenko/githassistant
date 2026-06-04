@@ -1,6 +1,9 @@
 import type { AIProvider, UsageContext } from '../types.js';
 
-const MAX_DIFF_CHARS = 60_000;
+// Char budget per AI chunk. Kept well under the model's 24k-token context window:
+// even token-dense content (~2 chars/token) stays under ~20k input tokens, leaving
+// room for the response. Asset/binary diffs are stripped upstream (filterDiffForSummary).
+const MAX_DIFF_CHARS = 40_000;
 
 export const SUMMARY_PROMPT = (language: string, authorLogin: string): string =>
   `Summarise the following git commits by @${authorLogin} in 2-3 sentences. Be direct and specific: state what was built, fixed, or changed. Do not evaluate the work, add opinions, or suggest reviews. Respond in ${language}.`;
