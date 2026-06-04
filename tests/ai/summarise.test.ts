@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { AIProvider } from '../../src/types.js';
-import { chunkText, summariseAuthorDiffs, SUMMARY_PROMPT } from '../../src/ai/summarise.js';
+import { chunkText, summariseAuthorDiffs, SUMMARY_PROMPT, HIGH_LEVEL_SUMMARY_PROMPT } from '../../src/ai/summarise.js';
 
 describe('chunkText', () => {
   it('returns single chunk when text is under maxChars', () => {
@@ -48,5 +48,21 @@ describe('summariseAuthorDiffs', () => {
   it('SUMMARY_PROMPT includes the language and author', () => {
     expect(SUMMARY_PROMPT('fr', 'bob')).toContain('fr');
     expect(SUMMARY_PROMPT('fr', 'bob')).toContain('@bob');
+  });
+
+  it('uses the high-level prompt when highLevel=true', async () => {
+    await summariseAuthorDiffs(mockProvider, ['small diff'], 'en', 'alice', undefined, true);
+    expect(mockProvider.summarise).toHaveBeenCalledWith(
+      HIGH_LEVEL_SUMMARY_PROMPT('en', 'alice'),
+      'small diff',
+      undefined,
+      undefined,
+    );
+  });
+
+  it('HIGH_LEVEL_SUMMARY_PROMPT asks for a high-level 1-2 sentence summary', () => {
+    const p = HIGH_LEVEL_SUMMARY_PROMPT('en', 'bob');
+    expect(p).toContain('HIGH-LEVEL');
+    expect(p).toContain('@bob');
   });
 });

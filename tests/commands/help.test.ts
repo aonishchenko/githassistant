@@ -24,10 +24,10 @@ function makeCtx(replyText = vi.fn()): AdapterContext {
 }
 
 describe('createHelpPlugin', () => {
-  it('registers as /help with no auth required', () => {
+  it('registers as /help with auth required', () => {
     const plugin = createHelpPlugin(config);
     expect(plugin.command).toBe('help');
-    expect(plugin.requiresAuth).toBe(false);
+    expect(plugin.requiresAuth).toBe(true);
   });
 
   it('replies with command reference including configured shortcuts', async () => {

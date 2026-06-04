@@ -7,6 +7,7 @@ import { createSummaryPlugin } from './summary.js';
 import { createMeetingSummaryPlugin } from './meeting-summary.js';
 import { createChangesPlugin } from './changes.js';
 import { createIssueAddPlugin } from './issueadd.js';
+import { createReleaseNotesPlugin } from './releasenotes.js';
 
 export function registerCommands(
   adapter: MessagingAdapter,
@@ -15,21 +16,25 @@ export function registerCommands(
   aiProvider: AIProvider,
   log: Logger,
 ): void {
+  // All commands require authorization (TELEGRAM_ALLOWED_USERS).
   const helpPlugin = createHelpPlugin(config);
-  adapter.onCommand(helpPlugin.command, helpPlugin.handler);
+  adapter.onCommand(helpPlugin.command, withAuth(helpPlugin, adapter));
 
   const { plugin: notePlugin, callbackHandler: noteCallback } = createNotePlugin(octokit, config);
   adapter.onCommand(notePlugin.command, withAuth(notePlugin, adapter));
   adapter.onCallback('nf', noteCallback);
 
   const { plugin: summaryPlugin } = createSummaryPlugin(octokit, config, aiProvider, log);
-  adapter.onCommand(summaryPlugin.command, summaryPlugin.handler);
+  adapter.onCommand(summaryPlugin.command, withAuth(summaryPlugin, adapter));
 
   const changesPlugin = createChangesPlugin(octokit, config, log);
-  adapter.onCommand(changesPlugin.command, changesPlugin.handler);
+  adapter.onCommand(changesPlugin.command, withAuth(changesPlugin, adapter));
 
   const issueAddPlugin = createIssueAddPlugin(octokit, config, aiProvider, log);
   adapter.onCommand(issueAddPlugin.command, withAuth(issueAddPlugin, adapter));
+
+  const releaseNotesPlugin = createReleaseNotesPlugin(octokit, config, aiProvider, log);
+  adapter.onCommand(releaseNotesPlugin.command, withAuth(releaseNotesPlugin, adapter));
 
   const { plugin: meetingPlugin, callbackHandler: meetingCallback } =
     createMeetingSummaryPlugin(octokit, config, aiProvider, log);

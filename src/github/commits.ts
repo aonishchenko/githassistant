@@ -109,6 +109,33 @@ export async function fetchCommitDiff(
   return data as unknown as string;
 }
 
+/**
+ * Fetch each commit's diff (asset-stripped) and group them by author as AI-ready
+ * blocks of `commit: <message>\n<diff>`. Shared by the daily summary job and the
+ * /releasenotes command so the block format and error handling stay in one place.
+ */
+export async function buildAuthorCommitBlocks(
+  octokit: Octokit,
+  config: Config,
+  commits: GitHubCommit[],
+  log: { error: (obj: object, msg?: string) => void },
+): Promise<Map<string, string[]>> {
+  const authorBlocks = new Map<string, string[]>();
+  for (const commit of commits) {
+    let diff: string;
+    try {
+      diff = filterDiffForSummary(await fetchCommitDiff(octokit, config, commit.sha));
+    } catch (err) {
+      log.error({ err, sha: commit.shortSha }, 'failed to fetch commit diff');
+      diff = `(diff unavailable for ${commit.shortSha})`;
+    }
+    const blocks = authorBlocks.get(commit.authorLogin) ?? [];
+    blocks.push(`commit: ${commit.message}\n${diff}`);
+    authorBlocks.set(commit.authorLogin, blocks);
+  }
+  return authorBlocks;
+}
+
 export async function fetchPeriodDiff(
   octokit: Octokit,
   config: Config,

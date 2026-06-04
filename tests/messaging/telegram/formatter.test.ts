@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   formatNoteAppend,
   formatSummaryMessage,
+  formatReleaseNotesMessage,
 } from '../../../src/messaging/telegram/formatter.js';
 
 describe('formatNoteAppend', () => {
@@ -28,6 +29,31 @@ describe('formatSummaryMessage', () => {
   it('returns no-commits message when summaries array is empty', () => {
     const result = formatSummaryMessage('last 24h', []);
     expect(result).toBe('No commits found in the last 24h.');
+  });
+});
+
+describe('formatReleaseNotesMessage', () => {
+  it('formats per-author release notes in Telegram HTML', () => {
+    const result = formatReleaseNotesMessage('last 1d', [
+      { authorLogin: 'alice', notes: '✨ New & Improved\n- Added dark mode' },
+      { authorLogin: 'bob', notes: '🐛 Fixes\n- Login no longer crashes' },
+    ]);
+    expect(result).toContain('🚀 <b>Release notes — last 1d</b>');
+    expect(result).toContain('<b>@alice</b>');
+    expect(result).toContain('Added dark mode');
+    expect(result).toContain('<b>@bob</b>');
+    expect(result).toContain('Login no longer crashes');
+  });
+
+  it('escapes HTML in the notes body', () => {
+    const result = formatReleaseNotesMessage('last 1d', [
+      { authorLogin: 'alice', notes: 'fixed <Foo> & <Bar>' },
+    ]);
+    expect(result).toContain('fixed &lt;Foo&gt; &amp; &lt;Bar&gt;');
+  });
+
+  it('returns no-commits message when empty', () => {
+    expect(formatReleaseNotesMessage('last 1d', [])).toBe('No commits found in the last 1d.');
   });
 });
 

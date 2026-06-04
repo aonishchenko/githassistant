@@ -56,7 +56,7 @@ export function createSummaryPlugin(
   const plugin: CommandPlugin = {
     command: 'summary',
     description: 'Summarise recent commits (default: last 24h)',
-    requiresAuth: false,
+    requiresAuth: true,
     handler: async (ctx) => {
       let period: PeriodResult;
       try {

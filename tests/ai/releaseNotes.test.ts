@@ -1,0 +1,70 @@
+import { describe, it, expect, vi } from 'vitest';
+import {
+  RELEASE_NOTES_PROMPT,
+  summariseReleaseNotes,
+  generatePerAuthorReleaseNotes,
+} from '../../src/ai/skills/releaseNotes.js';
+import type { AIProvider } from '../../src/types.js';
+
+const log = { error: vi.fn() };
+
+describe('RELEASE_NOTES_PROMPT', () => {
+  it('includes the author and period and the three section headers', () => {
+    const p = RELEASE_NOTES_PROMPT('alice', 'last 1d');
+    expect(p).toContain('@alice');
+    expect(p).toContain('last 1d');
+    expect(p).toContain('✨ New & Improved');
+    expect(p).toContain('🐛 Fixes');
+    expect(p).toContain('🔧 Behind the scenes');
+  });
+});
+
+describe('summariseReleaseNotes', () => {
+  it('makes a single call for small input', async () => {
+    const summarise = vi.fn().mockResolvedValue('✨ New & Improved\n- Added X');
+    const provider: AIProvider = { summarise };
+    const out = await summariseReleaseNotes(provider, 'alice', 'last 1d', ['commit: feat X\ndiff']);
+    expect(out).toContain('Added X');
+    expect(summarise).toHaveBeenCalledTimes(1);
+  });
+
+  it('chunks and consolidates when input exceeds the budget', async () => {
+    const summarise = vi.fn()
+      .mockResolvedValueOnce('extract A')
+      .mockResolvedValueOnce('extract B')
+      .mockResolvedValueOnce('final notes');
+    const provider: AIProvider = { summarise };
+    const huge = 'x'.repeat(45_000);
+    const out = await summariseReleaseNotes(provider, 'alice', 'last 1d', [huge]);
+    expect(out).toBe('final notes');
+    // 2 chunk extractions + 1 consolidation
+    expect(summarise).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe('generatePerAuthorReleaseNotes', () => {
+  it('produces notes for each author in order', async () => {
+    const summarise = vi.fn()
+      .mockResolvedValueOnce('alice notes')
+      .mockResolvedValueOnce('bob notes');
+    const provider: AIProvider = { summarise };
+    const blocks = new Map([
+      ['alice', ['commit: a\ndiff']],
+      ['bob', ['commit: b\ndiff']],
+    ]);
+    const result = await generatePerAuthorReleaseNotes(provider, 'last 1d', blocks, undefined, log);
+    expect(result).toEqual([
+      { authorLogin: 'alice', notes: 'alice notes' },
+      { authorLogin: 'bob', notes: 'bob notes' },
+    ]);
+  });
+
+  it('degrades to a placeholder when an author fails', async () => {
+    const summarise = vi.fn().mockRejectedValue(new Error('context window exceeded'));
+    const provider: AIProvider = { summarise };
+    const blocks = new Map([['alice', ['commit: a\ndiff']]]);
+    const result = await generatePerAuthorReleaseNotes(provider, 'last 1d', blocks, undefined, log);
+    expect(result).toEqual([{ authorLogin: 'alice', notes: '(release notes unavailable)' }]);
+    expect(log.error).toHaveBeenCalled();
+  });
+});

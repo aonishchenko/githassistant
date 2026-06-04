@@ -1,9 +1,10 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
 import type { Config, MessagingAdapter, AIProvider, JobPlugin, GitHubCommit, UsageContext } from '../types.js';
-import { fetchCommits, fetchCommitDiff, filterDiffForSummary } from '../github/commits.js';
+import { fetchCommits, buildAuthorCommitBlocks } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
-import { formatSummaryMessage } from '../messaging/telegram/formatter.js';
+import { generatePerAuthorReleaseNotes } from '../ai/skills/releaseNotes.js';
+import { formatSummaryMessage, formatReleaseNotesMessage } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
 import { buildTodayWindow, buildYesterdayWindow, type TimeWindow } from './timeWindow.js';
 
@@ -40,37 +41,26 @@ export function createDailySummaryJob(
         log.warn({ total: commits.length, cap: cappedCommits.length }, 'daily summary: commit count capped to avoid subrequest limit');
       }
 
-      const authorDiffs = new Map<string, string[]>();
-      for (const commit of cappedCommits) {
-        let diff: string;
-        try {
-          diff = filterDiffForSummary(await fetchCommitDiff(octokit, config, commit.sha));
-        } catch (err) {
-          log.error({ err, sha: commit.shortSha }, 'failed to fetch commit diff');
-          diff = `(diff unavailable for ${commit.shortSha})`;
-        }
-        const existing = authorDiffs.get(commit.authorLogin) ?? [];
-        existing.push(diff);
-        authorDiffs.set(commit.authorLogin, existing);
-      }
+      // Fetch each diff once; the per-commit blocks feed both the summary and release notes.
+      const authorBlocks = await buildAuthorCommitBlocks(octokit, config, cappedCommits, log);
 
       const { aiInputTruncateChars, aiCallDelayMs } = config.behavior;
       const cronCtx: UsageContext = { trigger: 'cron:daily', username: 'cron' };
       const authorSummaries: AuthorSummary[] = [];
-      const authorEntries = [...authorDiffs.entries()];
+      const authorEntries = [...authorBlocks.entries()];
       for (let i = 0; i < authorEntries.length; i++) {
-        const [authorLogin, diffs] = authorEntries[i];
+        const [authorLogin, blocks] = authorEntries[i];
         if (i > 0 && aiCallDelayMs > 0) {
           await new Promise(resolve => setTimeout(resolve, aiCallDelayMs));
         }
-        let combined = diffs.join('\n\n');
+        let combined = blocks.join('\n\n');
         if (aiInputTruncateChars !== null && combined.length > aiInputTruncateChars) {
           combined = combined.slice(0, aiInputTruncateChars);
-          log.warn({ authorLogin, original: diffs.join('\n\n').length, truncated: aiInputTruncateChars }, 'AI input truncated');
+          log.warn({ authorLogin, original: blocks.join('\n\n').length, truncated: aiInputTruncateChars }, 'AI input truncated');
         }
         let summary: string;
         try {
-          summary = await summariseAuthorDiffs(aiProvider, [combined], config.behavior.summaryLanguage, authorLogin, cronCtx);
+          summary = await summariseAuthorDiffs(aiProvider, [combined], config.behavior.summaryLanguage, authorLogin, cronCtx, true);
         } catch (err) {
           log.error({ err, authorLogin }, 'AI summarisation failed');
           summary = cappedCommits
@@ -82,6 +72,13 @@ export function createDailySummaryJob(
       }
 
       await adapter.sendMessage(formatSummaryMessage(dateStr, authorSummaries), { parseMode: 'HTML' });
+
+      // Per-author release notes for the same window (reusing the diffs fetched above).
+      const releaseNotes = await generatePerAuthorReleaseNotes(
+        aiProvider, dateStr, authorBlocks, cronCtx, log, aiCallDelayMs,
+      );
+      await adapter.sendMessage(formatReleaseNotesMessage(dateStr, releaseNotes), { parseMode: 'HTML' });
+
       log.info({ dateStr, commitCount: cappedCommits.length, totalCommits: commits.length, authorCount: authorSummaries.length }, 'daily summary job completed');
     },
   };

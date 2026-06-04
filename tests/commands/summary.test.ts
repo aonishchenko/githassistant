@@ -59,12 +59,12 @@ describe('parsePeriod', () => {
 });
 
 describe('createSummaryPlugin', () => {
-  it('registers as /summary with no auth required', () => {
+  it('registers as /summary requiring auth', () => {
     const octokit = {} as Octokit;
     const ai: AIProvider = { summarise: vi.fn() };
     const { plugin } = createSummaryPlugin(octokit, config, ai);
     expect(plugin.command).toBe('summary');
-    expect(plugin.requiresAuth).toBe(false);
+    expect(plugin.requiresAuth).toBe(true);
   });
 
   it('replies with no-commits message when no commits found', async () => {

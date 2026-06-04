@@ -45,7 +45,7 @@ export function createChangesPlugin(
   return {
     command: 'changes',
     description: 'Show diffs for docs files (default: last 24h)',
-    requiresAuth: false,
+    requiresAuth: true,
     handler: async (ctx) => {
       log.info({ username: ctx.username, arg: ctx.text }, 'changes command started');
 

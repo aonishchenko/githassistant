@@ -30,3 +30,18 @@ export function formatSummaryMessage(period: string, summaries: AuthorSummary[])
   return lines.join('\n');
 }
 
+export interface AuthorReleaseNotes {
+  authorLogin: string;
+  notes: string;
+}
+
+export function formatReleaseNotesMessage(period: string, perAuthor: AuthorReleaseNotes[]): string {
+  if (perAuthor.length === 0) return `No commits found in the ${period}.`;
+
+  const lines = [`🚀 <b>Release notes — ${escapeHtml(period)}</b>`];
+  for (const { authorLogin, notes } of perAuthor) {
+    lines.push('', `👤 <b>@${escapeHtml(authorLogin)}</b>`, escapeHtml(notes.trim()));
+  }
+  return lines.join('\n');
+}
+
