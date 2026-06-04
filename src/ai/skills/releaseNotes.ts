@@ -61,6 +61,10 @@ export async function summariseReleaseNotes(
  * Generate release notes for each author. `authorBlocks` maps an author login to
  * their list of commit blocks (each block = commit message + filtered diff).
  * Failures per author degrade gracefully to a placeholder rather than aborting.
+ *
+ * When `delayMs <= 0` (interactive use) the authors are processed in parallel for
+ * speed. When `delayMs > 0` (background cron) they run sequentially with that
+ * delay between authors to pace the AI provider.
  */
 export async function generatePerAuthorReleaseNotes(
   provider: AIProvider,
@@ -70,20 +74,26 @@ export async function generatePerAuthorReleaseNotes(
   log: { error: (obj: object, msg?: string) => void },
   delayMs = 0,
 ): Promise<ReleaseNotesEntry[]> {
-  const result: ReleaseNotesEntry[] = [];
   const entries = [...authorBlocks.entries()];
-  for (let i = 0; i < entries.length; i++) {
-    const [authorLogin, blocks] = entries[i];
-    if (i > 0 && delayMs > 0) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-    }
+
+  const generate = async (authorLogin: string, blocks: string[]): Promise<ReleaseNotesEntry> => {
     try {
       const notes = await summariseReleaseNotes(provider, authorLogin, period, blocks, ctx);
-      result.push({ authorLogin, notes });
+      return { authorLogin, notes };
     } catch (err) {
       log.error({ err, authorLogin }, 'release notes generation failed');
-      result.push({ authorLogin, notes: '(release notes unavailable)' });
+      return { authorLogin, notes: '(release notes unavailable)' };
     }
+  };
+
+  if (delayMs <= 0) {
+    return Promise.all(entries.map(([authorLogin, blocks]) => generate(authorLogin, blocks)));
+  }
+
+  const result: ReleaseNotesEntry[] = [];
+  for (let i = 0; i < entries.length; i++) {
+    if (i > 0) await new Promise(resolve => setTimeout(resolve, delayMs));
+    result.push(await generate(entries[i][0], entries[i][1]));
   }
   return result;
 }

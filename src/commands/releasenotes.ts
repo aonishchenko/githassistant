@@ -44,12 +44,15 @@ export function createReleaseNotesPlugin(
         return;
       }
 
+      await ctx.replyText(`🚀 Generating release notes for ${period.label} — this can take a minute…`);
+
       const capped = commits.slice(0, MAX_COMMITS);
       const authorBlocks = await buildAuthorCommitBlocks(octokit, config, capped, log);
 
+      // Interactive command: generate authors in parallel (delay 0) for responsiveness.
       const usageCtx: UsageContext = { trigger: 'releasenotes', username: ctx.username };
       const perAuthor = await generatePerAuthorReleaseNotes(
-        aiProvider, period.label, authorBlocks, usageCtx, log, config.behavior.aiCallDelayMs,
+        aiProvider, period.label, authorBlocks, usageCtx, log, 0,
       );
 
       await sendLong(
