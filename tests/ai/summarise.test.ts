@@ -60,9 +60,10 @@ describe('summariseAuthorDiffs', () => {
     );
   });
 
-  it('HIGH_LEVEL_SUMMARY_PROMPT asks for a high-level 1-2 sentence summary', () => {
+  it('HIGH_LEVEL_SUMMARY_PROMPT forbids preamble and conclusions', () => {
     const p = HIGH_LEVEL_SUMMARY_PROMPT('en', 'bob');
-    expect(p).toContain('HIGH-LEVEL');
     expect(p).toContain('@bob');
+    expect(p).toContain('NO preamble');
+    expect(p).toContain('2-3 short');
   });
 });

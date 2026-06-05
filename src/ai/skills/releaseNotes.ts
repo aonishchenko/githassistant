@@ -27,10 +27,44 @@ Rules:
 - Each bullet is ONE clear, plain-language sentence. No file names, no commit hashes, no code identifiers, no jargon.
 - Focus on user-visible impact. Group several related commits into a single bullet rather than listing each commit.
 - Omit trivial changes entirely.
+- If a section has no items, OMIT THE ENTIRE SECTION — both its emoji header and any bullets. NEVER output a placeholder like "(no notable fixes)" or "(no notable changes)" under a header.
 - Output ONLY the section headers (with their emoji) and bullets. No preamble, no title, no closing remarks.
-- If there is genuinely nothing user-relevant to report, output exactly: (no notable changes)`;
+- If there is genuinely nothing user-relevant to report at all, output exactly: (no notable changes)`;
 
 const EXTRACT_PROMPT = `Extract the notable changes from this portion of an author's git commits (messages + diffs): new features, enhancements, bug fixes, and any major infrastructure/backend changes. Be concise but do not omit anything user-relevant. Ignore trivial changes (formatting, lint, test-only, dependency bumps).`;
+
+const SECTION_HEADER_RE = /^\s*(✨|🐛|🔧)/;
+const PLACEHOLDER_RE = /\(\s*no\b[^)]*\)/i;
+
+/**
+ * Drop any release-note section whose only content is a "(no notable …)"
+ * placeholder, in case the model emits empty sections despite the prompt.
+ */
+export function stripEmptyReleaseNoteSections(notes: string): string {
+  const lines = notes.split('\n');
+  const out: string[] = [];
+  let i = 0;
+  while (i < lines.length && !SECTION_HEADER_RE.test(lines[i])) {
+    out.push(lines[i]);
+    i++;
+  }
+  while (i < lines.length) {
+    const header = lines[i];
+    const body: string[] = [];
+    i++;
+    while (i < lines.length && !SECTION_HEADER_RE.test(lines[i])) {
+      body.push(lines[i]);
+      i++;
+    }
+    const hasRealItem = body.some(l => {
+      const t = l.trim();
+      return t !== '' && !PLACEHOLDER_RE.test(t);
+    });
+    if (hasRealItem) out.push(header, ...body);
+  }
+  const cleaned = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return cleaned || '(no notable changes)';
+}
 
 /**
  * Generate per-author release notes from their commits (each entry = message + diff).
@@ -47,14 +81,14 @@ export async function summariseReleaseNotes(
   const prompt = RELEASE_NOTES_PROMPT(authorLogin, period);
 
   if (combined.length <= RELEASE_NOTES_MAX_CHARS) {
-    return provider.summarise(prompt, combined, 4096, ctx);
+    return stripEmptyReleaseNoteSections(await provider.summarise(prompt, combined, 4096, ctx));
   }
 
   const chunks = chunkText(combined, RELEASE_NOTES_MAX_CHARS);
   const extractions = await Promise.all(
     chunks.map(chunk => provider.summarise(EXTRACT_PROMPT, chunk, 2048, ctx)),
   );
-  return provider.summarise(prompt, extractions.join('\n\n'), 4096, ctx);
+  return stripEmptyReleaseNoteSections(await provider.summarise(prompt, extractions.join('\n\n'), 4096, ctx));
 }
 
 /**

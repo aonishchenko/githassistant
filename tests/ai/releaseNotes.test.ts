@@ -3,6 +3,7 @@ import {
   RELEASE_NOTES_PROMPT,
   summariseReleaseNotes,
   generatePerAuthorReleaseNotes,
+  stripEmptyReleaseNoteSections,
 } from '../../src/ai/skills/releaseNotes.js';
 import type { AIProvider } from '../../src/types.js';
 
@@ -16,6 +17,37 @@ describe('RELEASE_NOTES_PROMPT', () => {
     expect(p).toContain('✨ New & Improved');
     expect(p).toContain('🐛 Fixes');
     expect(p).toContain('🔧 Behind the scenes');
+  });
+});
+
+describe('stripEmptyReleaseNoteSections', () => {
+  it('removes sections whose only content is a placeholder', () => {
+    const input = [
+      '✨ New & Improved',
+      '* Added dark mode',
+      '',
+      '🐛 Fixes',
+      '* (no notable fixes)',
+      '',
+      '🔧 Behind the scenes',
+      '* (no notable changes)',
+    ].join('\n');
+    const out = stripEmptyReleaseNoteSections(input);
+    expect(out).toContain('✨ New & Improved');
+    expect(out).toContain('Added dark mode');
+    expect(out).not.toContain('🐛 Fixes');
+    expect(out).not.toContain('🔧 Behind the scenes');
+    expect(out).not.toContain('no notable');
+  });
+
+  it('keeps sections that have real items', () => {
+    const input = '🐛 Fixes\n* Login no longer crashes';
+    expect(stripEmptyReleaseNoteSections(input)).toBe(input);
+  });
+
+  it('falls back to a single line when everything is empty', () => {
+    const input = '🐛 Fixes\n* (no notable fixes)';
+    expect(stripEmptyReleaseNoteSections(input)).toBe('(no notable changes)');
   });
 });
 
