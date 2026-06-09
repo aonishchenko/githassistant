@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { parseActionItems, autoIssueFromSummary } from '../../src/github/autoIssue.js';
+import { parseActionItems, autoIssueFromSummary, canonicaliseActionItemOwners } from '../../src/github/autoIssue.js';
 import type { Config } from '../../src/types.js';
 
 vi.mock('../../src/github/issues.js', () => ({
@@ -66,6 +66,57 @@ describe('parseActionItems', () => {
   it('stops at the next ## section', () => {
     const items = parseActionItems(SUMMARY_WITH_ITEMS);
     expect(items.every(i => i.owner !== 'Q2 Priorities')).toBe(true);
+  });
+});
+
+describe('canonicaliseActionItemOwners', () => {
+  const summary = [
+    '## Action Items',
+    '',
+    '| # | Owner | Action | Deadline |',
+    '|---|-------|--------|----------|',
+    '| 1 | John | Review terms and conditions | ASAP |',
+    '| 2 | Sam | Finalize the app setup | ASAP |',
+    '| 3 | Joanna | Finish the design review | ASAP |',
+    '| 4 | Team | Review the FAQ | ASAP |',
+    '| 5 | TBD | Decide later | — |',
+  ].join('\n');
+
+  const transcript = 'Sam Third led the call with John First and Joanna Second.';
+  const configOwners = [
+    { name: 'John First', login: 'john-gh' },
+    { name: 'Joanna Second', login: 'joanna-gh' },
+  ];
+
+  it('expands short names to full names from config and transcript', () => {
+    const out = canonicaliseActionItemOwners(summary, transcript, configOwners);
+    expect(out).toContain('| 1 | John First | Review terms and conditions | ASAP |');
+    expect(out).toContain('| 2 | Sam Third | Finalize the app setup | ASAP |');
+    expect(out).toContain('| 3 | Joanna Second | Finish the design review | ASAP |');
+  });
+
+  it('leaves role/placeholder owners untouched', () => {
+    const out = canonicaliseActionItemOwners(summary, transcript, configOwners);
+    expect(out).toContain('| 4 | Team | Review the FAQ | ASAP |');
+    expect(out).toContain('| 5 | TBD | Decide later | — |');
+  });
+
+  it('makes auto-issue owner matching work after expansion', () => {
+    const out = canonicaliseActionItemOwners(summary, transcript, configOwners);
+    const items = parseActionItems(out);
+    expect(items.find(i => i.action.startsWith('Review terms'))?.owner).toBe('John First');
+  });
+
+  it('leaves names already full unchanged', () => {
+    const full = '## Action Items\n| # | Owner | Action | Deadline |\n|---|---|---|---|\n| 1 | John First | X | ASAP |';
+    expect(canonicaliseActionItemOwners(full, transcript, configOwners)).toBe(full);
+  });
+
+  it('does not expand an ambiguous transcript name', () => {
+    // "Sam Smith" and "Sam Jones" both appear -> ambiguous, leave "Sam" as-is
+    const s = '## Action Items\n| # | Owner | Action | Deadline |\n|---|---|---|---|\n| 1 | Sam | Do X | ASAP |';
+    const t = 'Sam Smith and Sam Jones disagreed.';
+    expect(canonicaliseActionItemOwners(s, t, [])).toContain('| 1 | Sam | Do X | ASAP |');
   });
 });
 

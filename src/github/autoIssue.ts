@@ -9,6 +9,80 @@ export interface ActionItem {
   action: string;
 }
 
+// Owners that are roles/placeholders, not people — never expand these.
+const NON_PERSON_OWNERS = new Set(['tbd', 'team', 'everyone', 'all', 'none', 'n/a', '-', '—']);
+
+/**
+ * Build a first-name → full-name roster. Configured owners are authoritative;
+ * the transcript supplements them with unambiguous "Firstname Lastname" mentions.
+ */
+function buildFullNameRoster(
+  transcript: string,
+  configOwners: Array<{ name: string }>,
+): Map<string, string> {
+  const roster = new Map<string, string>();
+  for (const { name } of configOwners) {
+    const first = name.trim().split(/\s+/)[0]?.toLowerCase();
+    if (first) roster.set(first, name.trim());
+  }
+
+  const mined = new Map<string, Set<string>>();
+  const re = /\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(transcript)) !== null) {
+    const first = m[1].toLowerCase();
+    if (!mined.has(first)) mined.set(first, new Set());
+    mined.get(first)!.add(`${m[1]} ${m[2]}`);
+  }
+  for (const [first, fulls] of mined) {
+    if (!roster.has(first) && fulls.size === 1) {
+      roster.set(first, [...fulls][0]);
+    }
+  }
+  return roster;
+}
+
+/**
+ * Rewrite the Owner column of the Action Items table to full names. The model
+ * frequently shortens names (e.g. "John") despite the prompt; this deterministic
+ * pass expands single-token owners to the full name found in the transcript or the
+ * configured owners, so the summary reads correctly and issue matching works.
+ */
+export function canonicaliseActionItemOwners(
+  summary: string,
+  transcript: string,
+  configOwners: Array<{ name: string }>,
+): string {
+  const roster = buildFullNameRoster(transcript, configOwners);
+  if (roster.size === 0) return summary;
+
+  const lines = summary.split('\n');
+  let inSection = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^##\s+Action Items/i.test(line)) { inSection = true; continue; }
+    if (!inSection) continue;
+    if (/^##\s/.test(line)) { inSection = false; continue; }
+    if (!line.trim().startsWith('|')) continue;
+
+    const cols = line.split('|');
+    if (cols.length < 4) continue; // need at least | # | Owner | ...
+    const idCol = cols[1].trim();
+    if (idCol === '#' || /^[-=\s]*$/.test(idCol)) continue; // header / separator
+
+    const ownerCell = cols[2];
+    const owner = ownerCell.trim();
+    if (!owner || owner.includes(' ') || NON_PERSON_OWNERS.has(owner.toLowerCase())) continue;
+
+    const full = roster.get(owner.toLowerCase());
+    if (full && full.toLowerCase() !== owner.toLowerCase()) {
+      cols[2] = ownerCell.replace(owner, full);
+      lines[i] = cols.join('|');
+    }
+  }
+  return lines.join('\n');
+}
+
 export function parseActionItems(summary: string): ActionItem[] {
   const items: ActionItem[] = [];
   const lines = summary.split('\n');

@@ -4,7 +4,7 @@ import type { Logger } from 'pino';
 import type { Config, AIProvider, CommandPlugin, CallbackHandler, SendOptions, UsageContext } from '../types.js';
 import { getFile, writeFile, listFiles, getFileCreationDate } from '../github/files.js';
 import { summariseMeeting } from '../ai/skills/meeting.js';
-import { autoIssueFromSummary } from '../github/autoIssue.js';
+import { autoIssueFromSummary, canonicaliseActionItemOwners } from '../github/autoIssue.js';
 import { parsePeriod } from './summary.js';
 
 export function buildSummaryFilename(transcriptPath: string): string {
@@ -99,11 +99,13 @@ export async function processFile(
       await replyText(`Failed to generate summary for ${transcriptPath}. Please try again.`);
       return;
     }
+    // Deterministically expand shortened action-item owner names to full names.
+    summaryText = canonicaliseActionItemOwners(summaryText, transcript.content, config.meeting.autoIssueOwners);
     const commitMsg = `summary(@${username}): ${summaryPath}`;
     await writeFile(octokit, config, summaryPath, summaryText, commitMsg);
   } else {
     log.info({ summaryPath }, 'summary already exists, skipping AI generation');
-    summaryText = existing!.content;
+    summaryText = canonicaliseActionItemOwners(existing!.content, transcript.content, config.meeting.autoIssueOwners);
   }
 
   const deliver = isFresh || !silentIfExists;
