@@ -4,7 +4,7 @@ import type { Config, MessagingAdapter, AIProvider, JobPlugin, GitHubCommit, Usa
 import { fetchCommits, buildAuthorCommitBlocks } from '../github/commits.js';
 import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { generatePerAuthorReleaseNotes } from '../ai/skills/releaseNotes.js';
-import { formatSummaryMessage, formatReleaseNotesMessage } from '../messaging/telegram/formatter.js';
+import { formatSummaryMessage, formatReleaseNotesMessage, sendLong } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
 import { buildTodayWindow, buildYesterdayWindow, type TimeWindow } from './timeWindow.js';
 
@@ -71,13 +71,14 @@ export function createDailySummaryJob(
         authorSummaries.push({ authorLogin, summary, files: [] });
       }
 
-      await adapter.sendMessage(formatSummaryMessage(dateStr, authorSummaries), { parseMode: 'HTML' });
+      const send = (t: string) => adapter.sendMessage(t, { parseMode: 'HTML' });
+      await sendLong(formatSummaryMessage(dateStr, authorSummaries), send);
 
       // Per-author release notes for the same window (reusing the diffs fetched above).
       const releaseNotes = await generatePerAuthorReleaseNotes(
         aiProvider, dateStr, authorBlocks, cronCtx, log, aiCallDelayMs,
       );
-      await adapter.sendMessage(formatReleaseNotesMessage(dateStr, releaseNotes), { parseMode: 'HTML' });
+      await sendLong(formatReleaseNotesMessage(dateStr, releaseNotes), send);
 
       log.info({ dateStr, commitCount: cappedCommits.length, totalCommits: commits.length, authorCount: authorSummaries.length }, 'daily summary job completed');
     },

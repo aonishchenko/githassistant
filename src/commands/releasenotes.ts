@@ -3,9 +3,8 @@ import type { Logger } from 'pino';
 import type { Config, AIProvider, CommandPlugin, UsageContext } from '../types.js';
 import { fetchCommits, buildAuthorCommitBlocks } from '../github/commits.js';
 import { generatePerAuthorReleaseNotes } from '../ai/skills/releaseNotes.js';
-import { formatReleaseNotesMessage } from '../messaging/telegram/formatter.js';
+import { formatReleaseNotesMessage, sendLong } from '../messaging/telegram/formatter.js';
 import { parsePeriod } from './summary.js';
-import { sendLong } from './meeting-summary.js';
 
 const MAX_COMMITS = 25;
 

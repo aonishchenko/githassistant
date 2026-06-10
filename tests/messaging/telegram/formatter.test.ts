@@ -3,6 +3,7 @@ import {
   formatNoteAppend,
   formatSummaryMessage,
   formatReleaseNotesMessage,
+  sendLong,
 } from '../../../src/messaging/telegram/formatter.js';
 
 describe('formatNoteAppend', () => {
@@ -54,6 +55,25 @@ describe('formatReleaseNotesMessage', () => {
 
   it('returns no-commits message when empty', () => {
     expect(formatReleaseNotesMessage('last 1d', [])).toBe('No commits found in the last 1d.');
+  });
+});
+
+describe('sendLong', () => {
+  it('sends a short message in a single call', async () => {
+    const sent: string[] = [];
+    await sendLong('short message', async t => { sent.push(t); });
+    expect(sent).toEqual(['short message']);
+  });
+
+  it('splits a message over the 4096 limit into multiple sends', async () => {
+    const sent: string[] = [];
+    const big = Array.from({ length: 50 }, (_, i) => `line ${i} ` + 'x'.repeat(100)).join('\n');
+    expect(big.length).toBeGreaterThan(4096);
+    await sendLong(big, async t => { sent.push(t); });
+    expect(sent.length).toBeGreaterThan(1);
+    expect(sent.every(chunk => chunk.length <= 4000)).toBe(true);
+    // no content lost (modulo trimmed boundary whitespace)
+    expect(sent.join('\n').replace(/\s+/g, '')).toBe(big.replace(/\s+/g, ''));
   });
 });
 

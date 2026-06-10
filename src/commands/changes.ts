@@ -3,7 +3,7 @@ import type { Logger } from 'pino';
 import type { Config, CommandPlugin } from '../types.js';
 import { fetchCommits, fetchCommitPatches } from '../github/commits.js';
 import { parsePeriod } from './summary.js';
-import { sendLong } from './meeting-summary.js';
+import { sendLong } from '../messaging/telegram/formatter.js';
 
 const MAX_COMMITS = 50;
 

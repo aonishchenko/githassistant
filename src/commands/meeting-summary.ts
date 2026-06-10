@@ -5,6 +5,7 @@ import type { Config, AIProvider, CommandPlugin, CallbackHandler, SendOptions, U
 import { getFile, writeFile, listFiles, getFileCreationDate } from '../github/files.js';
 import { summariseMeeting } from '../ai/skills/meeting.js';
 import { autoIssueFromSummary, canonicaliseActionItemOwners } from '../github/autoIssue.js';
+import { sendLong } from '../messaging/telegram/formatter.js';
 import { parsePeriod } from './summary.js';
 
 export function buildSummaryFilename(transcriptPath: string): string {
@@ -44,26 +45,6 @@ export async function getTranscriptDate(
   return getFileCreationDate(octokit, config, filePath);
 }
 
-const TG_MAX_CHARS = 4000;
-
-export async function sendLong(text: string, replyText: (t: string) => Promise<void>): Promise<void> {
-  if (text.length <= TG_MAX_CHARS) {
-    await replyText(text);
-    return;
-  }
-  let remaining = text;
-  while (remaining.length > 0) {
-    if (remaining.length <= TG_MAX_CHARS) {
-      await replyText(remaining);
-      break;
-    }
-    const slice = remaining.slice(0, TG_MAX_CHARS);
-    const cut = Math.max(slice.lastIndexOf('\n'), slice.lastIndexOf(' '));
-    const end = cut > TG_MAX_CHARS / 2 ? cut : TG_MAX_CHARS;
-    await replyText(remaining.slice(0, end));
-    remaining = remaining.slice(end).trimStart();
-  }
-}
 
 function githubFileUrl(config: Config, filePath: string): string {
   return `https://github.com/${config.github.owner}/${config.github.repo}/blob/${config.github.defaultBranch}/${filePath}`;
