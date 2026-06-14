@@ -13,7 +13,8 @@ database_name = "githassistant-db"
 database_id = "REPLACE_WITH_D1_DATABASE_ID"
 
 [triggers]
-crons = ["30 23 * * *", "0 * * * *"]
+# 07:00 + 08:00 UTC = daily summary at 08:00 Europe/Lisbon (DST-guarded in code); 0 * * * * = hourly meeting scan
+crons = ["0 7 * * *", "0 8 * * *", "0 * * * *"]
 
 [[queues.producers]]
 queue = "githassistant-queue"

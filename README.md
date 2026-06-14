@@ -249,9 +249,10 @@ Period filtering uses dates embedded in the filename — both hyphen (`2026-04-2
 
 ## Scheduled Jobs
 
-### Nightly (23:30 UTC on Cloudflare)
+### Daily (08:00 Europe/Lisbon on Cloudflare)
 
 - **Daily summary** — posts two messages to the group: a high-level per-author summary of today's commits, then per-author release notes for the same window
+- CF cron is UTC-only, so the worker triggers at both 07:00 and 08:00 UTC and runs the summary only when it is actually 08:00 in Lisbon — keeping it at 08:00 local across DST (WEST/WET)
 
 ### Meeting scan (every hour, CF only)
 
@@ -373,11 +374,11 @@ npm run cf:dev   # wrangler dev — runs CF Workers runtime locally on port 8787
 
 ### Nightly job schedule
 
-Two cron triggers are defined in `wrangler.toml`:
+Cron triggers are defined in `wrangler.toml`:
 
-| Schedule | Job | Description |
+| Schedule (UTC) | Job | Description |
 |---|---|---|
-| `30 23 * * *` | Daily summary | Posts a per-author summary + per-author release notes of today's commits to the group |
+| `0 7 * * *` + `0 8 * * *` | Daily summary | Posts a per-author summary + per-author release notes; runs only at 08:00 Europe/Lisbon (DST-guarded in code) |
 | `0 * * * *` | Meeting scan | Checks for new transcripts, posts summaries, and auto-creates issues from action items |
 
 Cron schedules are defined in `wrangler.toml` and cannot be overridden via secrets.

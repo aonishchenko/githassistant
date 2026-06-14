@@ -44,3 +44,12 @@ export function buildWindowUntilNow(since: Date, now: Date = new Date()): TimeWi
   const dateStr = `${since.toISOString().slice(0, 10)} → now`;
   return { since, until: now, dateStr };
 }
+
+/** True when `now` falls on the given wall-clock hour (0-23) in `timeZone`. */
+export function isLocalHour(timeZone: string, hour: number, now: Date = new Date()): boolean {
+  const localHour = parseInt(
+    new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', hour12: false }).format(now),
+    10,
+  );
+  return localHour === hour;
+}

@@ -7,9 +7,15 @@ import { createAIProvider } from '../../ai/provider.js';
 import { registerCommands, withAuth } from '../../commands/registry.js';
 import { createDailySummaryJob } from '../../jobs/dailySummary.js';
 import { createMeetingScanJob, processMeetingScanMessage, type MeetingScanMessage } from '../../jobs/meetingScan.js';
+import { isLocalHour } from '../../jobs/timeWindow.js';
 import { createD1UsageTracker } from './d1-tracker.js';
 
-const NIGHTLY_CRON = '30 23 * * *';
+// Daily summary fires at 08:00 Europe/Lisbon. CF cron is UTC-only and can't follow
+// DST, so we trigger at both 07:00 and 08:00 UTC and run only when it is actually
+// 08:00 in Lisbon (07:00 UTC in summer/WEST, 08:00 UTC in winter/WET).
+const DAILY_SUMMARY_CRONS = ['0 7 * * *', '0 8 * * *'];
+const DAILY_SUMMARY_TZ = 'Europe/Lisbon';
+const DAILY_SUMMARY_HOUR = 8;
 const MEETING_SCAN_CRON = '0 * * * *';
 
 function serializeError(err: unknown): object {
@@ -95,8 +101,12 @@ export default {
     const { config, octokit, aiProvider, adapter, log } = await buildDeps(env);
     log.info({ cron: event.cron }, 'scheduled trigger fired');
 
-    if (event.cron === NIGHTLY_CRON) {
-      await createDailySummaryJob(octokit, config, adapter, aiProvider, log).handler();
+    if (DAILY_SUMMARY_CRONS.includes(event.cron)) {
+      if (isLocalHour(DAILY_SUMMARY_TZ, DAILY_SUMMARY_HOUR)) {
+        await createDailySummaryJob(octokit, config, adapter, aiProvider, log).handler();
+      } else {
+        log.info({ cron: event.cron }, 'daily summary skipped — not 08:00 in Lisbon (DST guard)');
+      }
     }
 
     if (event.cron === MEETING_SCAN_CRON) {
