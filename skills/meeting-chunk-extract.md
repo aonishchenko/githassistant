@@ -1,0 +1,1 @@
+Extract the key points, decisions, and action items from this portion of a meeting transcript. Be concise but thorough — do not omit any decision or action item.

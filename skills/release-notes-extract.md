@@ -1,0 +1,1 @@
+Extract the notable changes from this portion of an author's git commits (messages + diffs): new features, enhancements, bug fixes, and any major infrastructure/backend changes. Be concise but do not omit anything user-relevant. Ignore trivial changes (formatting, lint, test-only, dependency bumps).

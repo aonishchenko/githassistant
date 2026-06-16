@@ -1,5 +1,6 @@
 import type { AIProvider, UsageContext } from '../../types.js';
 import { chunkText, MAX_DIFF_CHARS } from '../summarise.js';
+import { loadSkill, renderSkill } from './loader.js';
 
 export interface ReleaseNotesEntry {
   authorLogin: string;
@@ -10,35 +11,31 @@ export interface ReleaseNotesEntry {
 const RELEASE_NOTES_MAX_CHARS = MAX_DIFF_CHARS;
 
 export const RELEASE_NOTES_PROMPT = (authorLogin: string, period: string): string =>
-  `You are writing release notes for the work done by @${authorLogin} during ${period}, based on their git commits (commit messages and code diffs below).
+  renderSkill('release-notes', { author: authorLogin, period });
 
-Produce a concise bullet list of what changed, focused on what matters to USERS of the product. Organize into these sections, and OMIT any section that has no items:
-
-✨ New & Improved
-- New features and enhancements to existing features, described from the user's perspective (what they can now do).
-
-🐛 Fixes
-- Bugs fixed, each described as the problem that is now resolved.
-
-🔧 Behind the scenes
-- ONLY major infrastructure, backend, or architecture changes worth highlighting. Skip routine refactors, dependency bumps, formatting, test-only changes, and minor internal tweaks.
-
-Rules:
-- Each bullet is ONE clear, plain-language sentence. No file names, no commit hashes, no code identifiers, no jargon.
-- Focus on user-visible impact. Group several related commits into a single bullet rather than listing each commit.
-- Omit trivial changes entirely.
-- If a section has no items, OMIT THE ENTIRE SECTION — both its emoji header and any bullets. NEVER output a placeholder like "(no notable fixes)" or "(no notable changes)" under a header.
-- Output ONLY the section headers (with their emoji) and bullets. No preamble, no title, no closing remarks.
-- If there is genuinely nothing user-relevant to report at all, output exactly: (no notable changes)`;
-
-const EXTRACT_PROMPT = `Extract the notable changes from this portion of an author's git commits (messages + diffs): new features, enhancements, bug fixes, and any major infrastructure/backend changes. Be concise but do not omit anything user-relevant. Ignore trivial changes (formatting, lint, test-only, dependency bumps).`;
+const EXTRACT_PROMPT = loadSkill('release-notes-extract');
 
 const SECTION_HEADER_RE = /^\s*(✨|🐛|🔧)/;
-const PLACEHOLDER_RE = /\(\s*no\b[^)]*\)/i;
 
 /**
- * Drop any release-note section whose only content is a "(no notable …)"
- * placeholder, in case the model emits empty sections despite the prompt.
+ * True when a bullet is a "nothing to report" placeholder rather than a real item.
+ * Catches both parenthesised forms — "(no notable fixes)" — and full sentences like
+ * "No bugs were fixed in this release." / "No major changes were made.", without
+ * dropping genuine items such as "No longer crashes on startup".
+ */
+function isEmptyPlaceholderLine(line: string): boolean {
+  const t = line.trim().replace(/^[*\-+•]\s*/, '').trim();
+  if (!t) return false;
+  if (/^\(\s*no\b[^)]*\)\.?$/i.test(t)) return true;                                  // (no notable fixes)
+  if (/^(no|none|nothing)\b[\s\S]*\b(were|was|made|reported|to report)\b/i.test(t)) return true; // No bugs were fixed / No ... changes were made
+  if (/^(no|none|nothing)\b[\s\S]*\bin this (release|period|update)\b/i.test(t)) return true;     // No ... in this release
+  if (/^(none|n\/a|nothing to report)\.?$/i.test(t)) return true;
+  return false;
+}
+
+/**
+ * Drop any release-note section whose only content is a placeholder, in case the
+ * model emits empty sections despite the prompt.
  */
 export function stripEmptyReleaseNoteSections(notes: string): string {
   const lines = notes.split('\n');
@@ -56,10 +53,7 @@ export function stripEmptyReleaseNoteSections(notes: string): string {
       body.push(lines[i]);
       i++;
     }
-    const hasRealItem = body.some(l => {
-      const t = l.trim();
-      return t !== '' && !PLACEHOLDER_RE.test(t);
-    });
+    const hasRealItem = body.some(l => l.trim() !== '' && !isEmptyPlaceholderLine(l));
     if (hasRealItem) out.push(header, ...body);
   }
   const cleaned = out.join('\n').replace(/\n{3,}/g, '\n\n').trim();

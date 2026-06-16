@@ -1,4 +1,5 @@
 import type { AIProvider, UsageContext } from '../types.js';
+import { renderSkill } from './skills/loader.js';
 
 // Char budget per AI chunk. Kept well under the model's 24k-token context window:
 // even token-dense content (~2 chars/token) stays under ~20k input tokens, leaving
@@ -6,15 +7,10 @@ import type { AIProvider, UsageContext } from '../types.js';
 export const MAX_DIFF_CHARS = 40_000;
 
 export const SUMMARY_PROMPT = (language: string, authorLogin: string): string =>
-  `Summarise the following git commits by @${authorLogin} in 2-3 sentences. Be direct and specific: state what was built, fixed, or changed. Do not evaluate the work, add opinions, or suggest reviews. Respond in ${language}.`;
+  renderSkill('commit-summary', { author: authorLogin, language });
 
 export const HIGH_LEVEL_SUMMARY_PROMPT = (language: string, authorLogin: string): string =>
-  `Summarise what @${authorLogin} changed in the repository, in 2-3 short, specific sentences. State concretely what they built, changed, or fixed and in which areas — themes and concrete areas, not a list of every change.
-
-Strict rules:
-- NO preamble or framing. Never begin with "Here is", "This is a summary", "@${authorLogin} worked on", or similar — start directly with the substance.
-- NO evaluative or concluding sentences. Do not describe impact, goals, or benefits (e.g. "This enhanced the user experience", "Their work aimed to improve usability"). State only what changed, never why or to what effect.
-Respond in ${language}.`;
+  renderSkill('commit-summary-highlevel', { author: authorLogin, language });
 
 export function chunkText(text: string, maxChars: number): string[] {
   const chunks: string[] = [];
@@ -50,8 +46,9 @@ export async function summariseAuthorDiffs(
 
   if (chunkSummaries.length === 1) return chunkSummaries[0];
 
-  const consolidationPrompt = highLevel
-    ? `Consolidate the following partial summaries about @${authorLogin} into 2-3 short, specific sentences about what they changed in the repository. Strict rules: NO preamble or framing (never start with "Here is", "This is a summary", or "@${authorLogin}"), and NO evaluative or concluding sentences about impact, goals, or benefits — state only what changed. Respond in ${language}.`
-    : `Consolidate the following partial summaries about @${authorLogin} into a single cohesive summary of 3–5 sentences. Respond in ${language}.`;
+  const consolidationPrompt = renderSkill(
+    highLevel ? 'commit-summary-consolidate-highlevel' : 'commit-summary-consolidate',
+    { author: authorLogin, language },
+  );
   return provider.summarise(consolidationPrompt, chunkSummaries.join('\n\n'), undefined, ctx);
 }

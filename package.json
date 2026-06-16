@@ -6,14 +6,17 @@
   },
   "type": "module",
   "scripts": {
+    "skills:build": "node scripts/build-skills.mjs",
+    "prebuild": "npm run skills:build",
     "build": "tsc",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
+    "pretest": "npm run skills:build",
     "test": "vitest run",
     "test:watch": "vitest",
     "job:squash": "tsx src/jobs/squash.ts",
     "job:summary": "tsx src/jobs/dailySummary.ts",
-    "cf:deploy": "wrangler deploy",
+    "cf:deploy": "npm run skills:build && wrangler deploy",
     "cf:dev": "wrangler dev",
     "cf:register-webhook": "tsx scripts/register-webhook.ts"
   },

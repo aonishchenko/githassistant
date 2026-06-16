@@ -40,8 +40,32 @@ describe('stripEmptyReleaseNoteSections', () => {
     expect(out).not.toContain('no notable');
   });
 
+  it('removes sections with sentence-form "nothing happened" placeholders', () => {
+    const input = [
+      '✨ New & Improved',
+      '* Added dark mode',
+      '',
+      '🐛 Fixes',
+      '* No bugs were fixed in this release.',
+      '',
+      '🔧 Behind the scenes',
+      '* No major infrastructure, backend, or architecture changes were made in this release.',
+    ].join('\n');
+    const out = stripEmptyReleaseNoteSections(input);
+    expect(out).toContain('Added dark mode');
+    expect(out).not.toContain('🐛 Fixes');
+    expect(out).not.toContain('Behind the scenes');
+    expect(out).not.toContain('No bugs were fixed');
+    expect(out).not.toContain('No major');
+  });
+
   it('keeps sections that have real items', () => {
     const input = '🐛 Fixes\n* Login no longer crashes';
+    expect(stripEmptyReleaseNoteSections(input)).toBe(input);
+  });
+
+  it('does not drop a genuine "No longer ..." fix', () => {
+    const input = '🐛 Fixes\n* No longer crashes on startup when the cache is empty';
     expect(stripEmptyReleaseNoteSections(input)).toBe(input);
   });
 

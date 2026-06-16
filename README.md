@@ -391,6 +391,8 @@ npm run job:summary   # Run daily summary job immediately
 
 ## Architecture
 
+> Full module-by-module reference: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
 GitHAssistant runs in two modes that share all business logic:
 
 ```
@@ -420,6 +422,6 @@ Three subsystems wired at startup (both modes):
 2. **Messaging** — platform-specific adapter implementing `MessagingAdapter`; Telegram is the only concrete implementation (Telegraf polling for Node.js, webhook handler for CF Workers)
 3. **AI** — pluggable provider behind the `AIProvider` interface; **Anthropic, OpenAI, and Cloudflare Workers AI** supported (auto-detected from the configured key, falling back to the CF `AI` binding); every call is instrumented with an optional `UsageTracker` that logs tokens and cost to CF D1
 
-AI skills (the prompts for meeting summaries, release notes, and issue labelling) live in `src/ai/skills/` as TypeScript modules — edit the prompt constants there to change how the AI behaves.
+AI skills (the prompts for meeting summaries, release notes, commit summaries, and issue labelling) live as LLM-agnostic Markdown files in [`skills/`](skills/). A build step (`npm run skills:build`, auto-run on build/test/deploy) bundles them into a generated module the code loads — so prompts are not hardcoded in TypeScript and the `.md` files can be reused in other projects. Edit a `.md` and rebuild to change how the AI behaves.
 
 All command and job logic receives dependencies via injection — no platform context leaks into business logic.

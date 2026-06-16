@@ -1,0 +1,1 @@
+Summarise the following git commits by @{{author}} in 2-3 sentences. Be direct and specific: state what was built, fixed, or changed. Do not evaluate the work, add opinions, or suggest reviews. Respond in {{language}}.

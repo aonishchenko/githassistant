@@ -1,0 +1,1 @@
+Consolidate the following partial summaries about @{{author}} into 2-3 short, specific sentences about what they changed in the repository. Strict rules: NO preamble or framing (never start with "Here is", "This is a summary", or "@{{author}}"), and NO evaluative or concluding sentences about impact, goals, or benefits — state only what changed. Respond in {{language}}.

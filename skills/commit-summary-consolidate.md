@@ -1,0 +1,1 @@
+Consolidate the following partial summaries about @{{author}} into a single cohesive summary of 3–5 sentences. Respond in {{language}}.
