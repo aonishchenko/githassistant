@@ -6,7 +6,7 @@ import { summariseAuthorDiffs } from '../ai/summarise.js';
 import { generatePerAuthorReleaseNotes } from '../ai/skills/releaseNotes.js';
 import { formatSummaryMessage, formatReleaseNotesMessage, sendLong } from '../messaging/telegram/formatter.js';
 import type { AuthorSummary } from '../messaging/telegram/formatter.js';
-import { buildTodayWindow, buildYesterdayWindow, type TimeWindow } from './timeWindow.js';
+import { buildLast24hWindow, type TimeWindow } from './timeWindow.js';
 
 export function createDailySummaryJob(
   octokit: Octokit,
@@ -14,7 +14,7 @@ export function createDailySummaryJob(
   adapter: MessagingAdapter,
   aiProvider: AIProvider,
   log: Logger,
-  buildWindow: () => TimeWindow = () => buildTodayWindow(config.scheduler.timezone),
+  buildWindow: () => TimeWindow = () => buildLast24hWindow(config.scheduler.timezone),
 ): JobPlugin {
   return {
     name: 'dailySummary',

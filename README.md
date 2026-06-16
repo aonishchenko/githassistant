@@ -251,7 +251,7 @@ Period filtering uses dates embedded in the filename — both hyphen (`2026-04-2
 
 ### Daily (08:00 Europe/Lisbon on Cloudflare)
 
-- **Daily summary** — posts two messages to the group: a high-level per-author summary of today's commits, then per-author release notes for the same window
+- **Daily summary** — posts two messages to the group: a high-level per-author summary of the last 24 hours' commits, then per-author release notes for the same window
 - CF cron is UTC-only, so the worker triggers at both 07:00 and 08:00 UTC and runs the summary only when it is actually 08:00 in Lisbon — keeping it at 08:00 local across DST (WEST/WET)
 
 ### Meeting scan (every hour, CF only)

@@ -45,6 +45,16 @@ export function buildWindowUntilNow(since: Date, now: Date = new Date()): TimeWi
   return { since, until: now, dateStr };
 }
 
+/** Rolling window covering the last 24 hours ending at `now`, dated by the local day. */
+export function buildLast24hWindow(timezone: string, now: Date = new Date()): TimeWindow {
+  const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const dateStr = new Intl.DateTimeFormat('sv-SE', {
+    timeZone: timezone,
+    year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(now);
+  return { since, until: now, dateStr };
+}
+
 /** True when `now` falls on the given wall-clock hour (0-23) in `timeZone`. */
 export function isLocalHour(timeZone: string, hour: number, now: Date = new Date()): boolean {
   const localHour = parseInt(
