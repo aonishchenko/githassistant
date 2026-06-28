@@ -2,43 +2,41 @@
 import type { Octokit } from '@octokit/rest';
 import type { Logger } from 'pino';
 import type { Config, AIProvider, JobPlugin, SendOptions, UsageContext } from '../types.js';
-import { listFiles, getFileCreationDate } from '../github/files.js';
-import { isTranscriptFile, processFile } from '../commands/meeting-summary.js';
-
-const KV_KEY = 'meeting:last_scan';
+import { listFiles } from '../github/files.js';
+import { isTranscriptFile, buildSummaryFilename, processFile } from '../commands/meeting-summary.js';
 
 export interface MeetingScanMessage {
   type: 'meeting_scan';
   transcriptPath: string;
 }
 
+/**
+ * Returns the transcripts (anywhere under the meeting folder, including subfolders)
+ * that do not yet have a corresponding summary file. Uses only the single recursive
+ * directory listing — no per-file git-history lookups — so it stays well within the
+ * Worker subrequest budget no matter how many transcripts accumulate.
+ */
+export function findUnsummarisedTranscripts(allFiles: string[]): string[] {
+  const existing = new Set(allFiles);
+  return allFiles.filter(isTranscriptFile).filter(t => !existing.has(buildSummaryFilename(t)));
+}
+
 export function createMeetingScanJob(
   octokit: Octokit,
   config: Config,
-  kv: KVNamespace,
   queue: Queue,
   log: Logger,
 ): JobPlugin {
   return {
     name: 'meetingScan',
     handler: async () => {
-      const now = Date.now();
-      const lastScanStr = await kv.get(KV_KEY);
-      const lastScanTs = lastScanStr ? parseInt(lastScanStr, 10) : 0;
-      log.info({ lastScanTs }, 'meeting scan job started');
+      log.info('meeting scan job started');
 
       const allFiles = await listFiles(octokit, config, [config.meeting.notesFolder]);
-      const transcripts = allFiles.filter(isTranscriptFile);
-
-      const toProcess: string[] = [];
-      for (const f of transcripts) {
-        const d = await getFileCreationDate(octokit, config, f);
-        if (d && d.getTime() >= lastScanTs) toProcess.push(f);
-      }
+      const toProcess = findUnsummarisedTranscripts(allFiles);
 
       if (toProcess.length === 0) {
-        log.info('meeting scan: no new transcripts');
-        await kv.put(KV_KEY, String(now));
+        log.info('meeting scan: all transcripts already have summaries');
         return;
       }
 
@@ -47,7 +45,6 @@ export function createMeetingScanJob(
         await queue.send({ type: 'meeting_scan', transcriptPath } satisfies MeetingScanMessage);
       }
 
-      await kv.put(KV_KEY, String(now));
       log.info({ count: toProcess.length }, 'meeting scan job completed');
     },
   };

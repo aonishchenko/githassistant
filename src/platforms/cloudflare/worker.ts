@@ -110,7 +110,7 @@ export default {
     }
 
     if (event.cron === MEETING_SCAN_CRON) {
-      await createMeetingScanJob(octokit, config, env.GITHASSISTANT_KV, env.BOT_QUEUE, log).handler();
+      await createMeetingScanJob(octokit, config, env.BOT_QUEUE, log).handler();
     }
   },
 };
